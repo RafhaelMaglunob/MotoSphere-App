@@ -19,20 +19,21 @@ export default function Register() {
     const [error, setError] = useState({ email: '', contact: '', password: '', confirmPassword: '' });
     const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com'];
 
+
     const handleEmailChange = (value: string) => {
         setEmail(value);
 
-        // Simple email pattern check
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        // Regex: only letters and digits before @, then domain
+        const emailPattern = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
+
         if (!emailPattern.test(value)) {
-            setError(prev => ({ ...prev, email: 'Invalid email format.' }));
+            setError(prev => ({ ...prev, email: 'Email must contain only letters and digits.' }));
             return;
         }
 
         // Extract domain after @
         const domain = value.split('@')[1];
         if (!allowedDomains.includes(domain)) {
-
             setError(prev => ({ ...prev, email: `Email must be one of: ${allowedDomains.join(', ')}` }));
         } else {
             setError(prev => ({ ...prev, email: '' }));

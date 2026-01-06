@@ -23,6 +23,8 @@ export default function EditContactModal({
     const [phoneError, setPhoneError] = useState("");
     const [emailError, setEmailError] = useState("");
 
+    const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com'];
+
     useEffect(() => {
         if (contact) {
             setName(contact.name);
@@ -52,15 +54,22 @@ export default function EditContactModal({
     };
 
     const handleEmailChange = (value: string) => {
-        setEmail(value.toLowerCase());
+        setEmail(value);
 
-        const emailRegex =
-            /^[^\s@]+@(gmail\.com|yahoo\.com)$/;
+        // Regex: only letters and digits before @, then domain
+        const emailPattern = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
 
-        if (!emailRegex.test(value.toLowerCase())) {
-            setEmailError("Email must be gmail.com or yahoo.com");
+        if (!emailPattern.test(value)) {
+            setEmailError('Email must contain only letters and digits.');
+            return;
+        }
+
+        // Extract domain after @
+        const domain = value.split('@')[1];
+        if (!allowedDomains.includes(domain)) {
+            setEmailError(`Email must be one of: ${allowedDomains.join(', ')}`);
         } else {
-            setEmailError("");
+            setEmailError('');
         }
     };
 

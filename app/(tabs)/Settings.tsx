@@ -40,15 +40,26 @@ export default function Settings({ userIndex, user, setActiveRoute, updateUser }
     { type: 'notification', name: 'Notifications', icon: BellIcon }
   ];
 
+  const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com'];
   // Live email validation
+
   const handleEmailChange = (value: string) => {
     setEmail(value);
-    // Accept gmail.co or yahoo.co
-    const regex = /^[^\s@]+@(gmail\.co|yahoo\.co)$/i;
-    if (!regex.test(value)) {
-      setEmailError("Email must be @gmail.co or @yahoo.co");
+
+    // Regex: only letters and digits before @, then domain
+    const emailPattern = /^[a-zA-Z0-9]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/;
+
+    if (!emailPattern.test(value)) {
+      setEmailError('Email must contain only letters and digits.' );
+      return;
+    }
+
+    // Extract domain after @
+    const domain = value.split('@')[1];
+    if (!allowedDomains.includes(domain)) {
+      setEmailError(`Email must be one of: ${allowedDomains.join(', ')}`);
     } else {
-      setEmailError("");
+      setEmailError('');
     }
   };
 

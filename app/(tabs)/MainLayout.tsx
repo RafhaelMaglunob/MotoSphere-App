@@ -19,6 +19,7 @@ import { User, Sensor, TrustedContact, GpsMetrics, Notification } from "../../co
 import { mockSensor, mockTrustedContact, mockNotification } from "../../components/services/data";
 
 import { users } from "@/components/services/users";
+import { contacts } from "@/components/services/trustedContacts";
 
 export default function MainLayout(props: { index?: string }) {
     const params = useSearchParams(); // returns URLSearchParams
@@ -32,7 +33,10 @@ export default function MainLayout(props: { index?: string }) {
 
     const user: User = users[index];
     const sensor: Sensor[] = mockSensor;
-    const trustedContact: TrustedContact[] = mockTrustedContact;
+    const trustedContact: TrustedContact[] = contacts.filter(
+        (c) => c.ownerEmail === user.email
+    );
+
     const notifications: Notification[] = mockNotification;
 
     const buttons = [
@@ -115,7 +119,7 @@ export default function MainLayout(props: { index?: string }) {
                 return (
                     <ContactPersons
                         setActiveRoute={handleRouteChange}
-                        trustedContact={trustedContact}
+                        currentUserEmail={user.email}
                     />
                 )
             case "Devices":

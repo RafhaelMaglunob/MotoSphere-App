@@ -101,7 +101,7 @@ export default function Devices() {
         return;
       }
 
-      if (device && device.name?.startsWith("MS") && !foundDevices.find((d) => d.id === device.id)) {
+      if (device && !foundDevices.find((d) => d.id === device.id)) {
         setFoundDevices((prev) => {
           if (prev.length >= 7) return prev;
           return [...prev, device];

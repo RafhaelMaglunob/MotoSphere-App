@@ -77,10 +77,10 @@ export const mockSensor: Sensor[] = [
 */}
 
 export const mockTrustedContact: TrustedContact[] = [
-  {name: 'Jheff Cruz', relation: "Friend", contactNo: '09434323323', email: 'jheffcruz@gmail.com', latitude: 14.75281, longitude: 121.03222 },
-  {name: 'Heuben Dagami', relation: "Friend", contactNo: '09434336343', email: 'heubendagami@gmail.com', latitude: 14.75400, longitude: 121.02850 },
-  {name: 'Kiel Martinez', relation: "Friend", contactNo: '09342634764', email: 'kielmartinez@gmail.com', latitude: 14.75530, longitude: 121.03180 },
-  {name: 'Kiel Martinez', relation: "Friend", contactNo: '09342334764', email: 'kielmartinez@gmail.com', latitude: 14.75590, longitude: 121.02950 }
+  {ownerEmail: "alexjohnson@gmail.com", name: 'Jheff Cruz', relation: "Friend", contactNo: '09434323323', email: 'jheffcruz@gmail.com', latitude: 14.75281, longitude: 121.03222 },
+  {ownerEmail: "alexjohnson@gmail.com", name: 'Heuben Dagami', relation: "Friend", contactNo: '09434336343', email: 'heubendagami@gmail.com', latitude: 14.75400, longitude: 121.02850 },
+  {ownerEmail: "alexjohnson@gmail.com", name: 'Kiel Martinez', relation: "Friend", contactNo: '09342634764', email: 'kielmartinez@gmail.com', latitude: 14.75530, longitude: 121.03180 },
+  {ownerEmail: "alexjohnson@gmail.com", name: 'Kiel Martinez', relation: "Friend", contactNo: '09342334764', email: 'kielmartinez@gmail.com', latitude: 14.75590, longitude: 121.02950 }
 ]
 
 {/*
