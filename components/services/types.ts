@@ -1,5 +1,6 @@
 
 // Sensor interface
+
 export interface Sensor {
   name: string;
   status: 'active' | 'inactive'; // matches MainLayout values
@@ -8,6 +9,7 @@ export interface Sensor {
 export interface User {
   name: string
   email: string
+  password: string
   role: string
   contactNo: string
   connection: string
@@ -15,6 +17,7 @@ export interface User {
   lastOnline: string
   battery: number
   system: string
+  lastChangePass: string
 }
 
 export interface TrustedContact {
@@ -22,6 +25,8 @@ export interface TrustedContact {
   relation: string
   contactNo: string
   email: string
+  latitude: number
+  longitude: number
 }
 
 export interface GpsMetrics  {

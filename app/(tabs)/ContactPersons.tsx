@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 
 import UserIcon from "../../components/svg/ProfileIcon";
@@ -8,27 +9,50 @@ import { DeleteIcon } from "../../components/svg/DeleteIcon";
 import { EditIcon } from "../../components/svg/EditIcon";
 
 import { TrustedContact } from "../../components/services/types";
+import AddContactModal from "@/components/modals/AddContactModal";
+import EditContactModal from "@/components/modals/EditContactModal";
 
 interface ContactPersonsProps {
   setActiveRoute: (route: string) => void;
   trustedContact: TrustedContact[];
 }
 
-function formatNumberGroups(value: String ) {
-    return value
-        .toString()
-        .replace(/\D/g, "")      // remove non-digits
-        .replace(/(.{4})/g, "$1 ")
-        .trim();
+function formatNumberGroups(value: string) {
+  const digits = value.replace(/\D/g, ""); // remove non-digits
+  const part1 = digits.slice(0, 4);
+  const part2 = digits.slice(4, 7);
+  const part3 = digits.slice(7, 11);
+
+  let formatted = part1;
+  if (part2) formatted += " " + part2;
+  if (part3) formatted += " " + part3;
+
+  return formatted;
 }
 
+
 export default function ContactPersons({ setActiveRoute, trustedContact }: ContactPersonsProps) {
-  
-  const handleEdit = (i: number) => {
-    console.log(i)
-  }
+  const [showModal, setShowModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  const handleEdit = (index: number) => {
+    setSelectedIndex(index);
+    setShowEditModal(true);
+  };
+
+  const handleUpdate = (updated: TrustedContact) => {
+    if (selectedIndex === null) return;
+
+    trustedContact[selectedIndex] = updated;
+    setShowEditModal(false);
+  };
+
   const handleDelete = (i: number) => {
     console.log(i)
+  }
+  const handleSave = () => {
+
   }
 
   return (
@@ -53,9 +77,9 @@ export default function ContactPersons({ setActiveRoute, trustedContact }: Conta
       </Text>
 
       <Pressable>
-        <View 
-          style={{ 
-            flexDirection: 'row', 
+        <View
+          style={{
+            flexDirection: 'row',
             gap: 12,
             backgroundColor: '#2EA8FF',
             alignSelf: 'flex-start',
@@ -70,11 +94,15 @@ export default function ContactPersons({ setActiveRoute, trustedContact }: Conta
             shadowOffset: { width: 0, height: 5 },
 
             // Android
-            elevation: 16, 
+            elevation: 16,
           }}
         >
-          <Text style={{ color: "#fff", fontSize: 16, fontWeight: 'bold'}}>+</Text>
-          <Text style={{ color: "#fff", fontSize: 16, fontWeight: 'bold'}}>Add Contact</Text>
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: 'bold' }}>+</Text>
+          <Pressable
+            onPress={() => setShowModal(true)}
+          >
+            <Text style={{ color: "#fff", fontSize: 16, fontWeight: 'bold' }}>Add Contact</Text>
+          </Pressable>
         </View>
       </Pressable>
 
@@ -156,9 +184,9 @@ export default function ContactPersons({ setActiveRoute, trustedContact }: Conta
                 </View>
               </View>
 
-              
+
               {/* Contact Information (Edit/Delete) action */}
-              <View 
+              <View
                 style={{
                   flexDirection: 'row',
                   gap: 8
@@ -177,7 +205,7 @@ export default function ContactPersons({ setActiveRoute, trustedContact }: Conta
                     <EditIcon />
                   </View>
                 </Pressable>
-                
+
                 {/* Delete */}
                 <Pressable onPress={() => handleDelete(index)}>
                   <View
@@ -188,7 +216,7 @@ export default function ContactPersons({ setActiveRoute, trustedContact }: Conta
                       borderRadius: 8
                     }}
                   >
-                    <DeleteIcon/>
+                    <DeleteIcon />
                   </View>
                 </Pressable>
               </View>
@@ -234,6 +262,14 @@ export default function ContactPersons({ setActiveRoute, trustedContact }: Conta
           </View>
         ))}
       </View>
+
+      <AddContactModal visible={showModal} onClose={() => setShowModal(false)} onSave={handleSave} />
+      <EditContactModal
+        visible={showEditModal}
+        contact={selectedIndex !== null ? trustedContact[selectedIndex] : null}
+        onClose={() => setShowEditModal(false)}
+        onSave={handleUpdate}
+      />
     </View>
   );
 }

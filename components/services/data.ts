@@ -44,6 +44,7 @@ function timeAgo(dateString: string): string {
 export const mockUser: User = { 
     name: "Alex Johnson", 
     email: "alexjohnson@gmail.com",
+    password: "alexjohnson@123",
     contactNo: "09422422422",
     role: 'Rider', 
     connection: 'connected', 
@@ -76,10 +77,10 @@ export const mockSensor: Sensor[] = [
 */}
 
 export const mockTrustedContact: TrustedContact[] = [
-  {name: 'Jheff Cruz', relation: "Friend", contactNo: '094343234323', email: 'jheffcruz@gmail.com' },
-  {name: 'Heuben Dagami', relation: "Friend", contactNo: '094343436343', email: 'heubendagami@gmail.com' },
-  {name: 'Kiel Martinez', relation: "Friend", contactNo: '093423634764', email: 'kielmartinez@gmail.com' },
-  {name: 'Kiel Martinez', relation: "Friend", contactNo: '093423634764', email: 'kielmartinez@gmail.com' }
+  {name: 'Jheff Cruz', relation: "Friend", contactNo: '09434323323', email: 'jheffcruz@gmail.com', latitude: 14.75281, longitude: 121.03222 },
+  {name: 'Heuben Dagami', relation: "Friend", contactNo: '09434336343', email: 'heubendagami@gmail.com', latitude: 14.75400, longitude: 121.02850 },
+  {name: 'Kiel Martinez', relation: "Friend", contactNo: '09342634764', email: 'kielmartinez@gmail.com', latitude: 14.75530, longitude: 121.03180 },
+  {name: 'Kiel Martinez', relation: "Friend", contactNo: '09342334764', email: 'kielmartinez@gmail.com', latitude: 14.75590, longitude: 121.02950 }
 ]
 
 {/*
@@ -94,10 +95,10 @@ export const mockTrustedContact: TrustedContact[] = [
   * * * * * * * * * * * * * * *
   
 */}
+
 export const mockMetrics: GpsMetrics[] = [
   { name: "Speed", unit: "km/h", value: 60 },
-  { name: "Altitude", unit: "m", value: 23 },
-  { name: "Distance", unit: "km", value: 5 },
+  { name: "Altitude", unit: "m", value: 23 }
 ];
 
 

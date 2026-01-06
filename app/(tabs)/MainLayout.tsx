@@ -1,6 +1,7 @@
 //MainLayout.tsx
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useSearchParams } from "expo-router/build/hooks";
 import { ScrollView, View, Text, Pressable, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import TopBar from "../../components/ui/TopBar";
@@ -15,17 +16,23 @@ import Notifications from "./Notifications";
 import Settings from "./Settings";
 
 import { User, Sensor, TrustedContact, GpsMetrics, Notification } from "../../components/services/types";
-import { mockUser, mockSensor, mockTrustedContact, mockNotification } from "../../components/services/data";
-import { useLiveGpsMetrics } from "../../components/services/useLiveGpsMetrics";
+import { mockSensor, mockTrustedContact, mockNotification } from "../../components/services/data";
 
-export default function MainLayout() {
+import { users } from "@/components/services/users";
+
+export default function MainLayout(props: { index?: string }) {
+    const params = useSearchParams(); // returns URLSearchParams
+    const index = Number(props.index ?? params.get('index') ?? -1);
+
+    const scrollRef = useRef<ScrollView>(null);
+
+    const [currentUser, setCurrentUser] = useState<User>(users[index]);
     const [activeRoute, setActiveRoute] = useState("Home");
     const [showSidebar, setShowSidebar] = useState(false);
 
-    const user: User = mockUser;
+    const user: User = users[index];
     const sensor: Sensor[] = mockSensor;
     const trustedContact: TrustedContact[] = mockTrustedContact;
-    const metrics: GpsMetrics[] = useLiveGpsMetrics();
     const notifications: Notification[] = mockNotification;
 
     const buttons = [
@@ -42,6 +49,23 @@ export default function MainLayout() {
 
         setActiveRoute("Login")
     }
+
+    const handleRouteChange = (route: string) => {
+        setActiveRoute(route);
+
+        // Scroll to top whenever route changes
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+    };
+
+    const handleUpdateUser = (updatedUser: Partial<User>) => {
+        const updated = { ...currentUser, ...updatedUser };
+
+        // Update the in-memory array as well
+        users[index] = updated;
+
+        // Update state so React re-renders
+        setCurrentUser(updated);
+    };
 
     const footer = (
         <View style={{ marginTop: "auto", paddingHorizontal: 20, paddingBottom: 20 }}>
@@ -74,32 +98,32 @@ export default function MainLayout() {
         switch (activeRoute) {
             case "Home":
                 return (
-                    <Home 
-                        user={user} 
-                        sensors={sensor} 
-                        trustedContact={trustedContact} 
-                        setActiveRoute={setActiveRoute}
+                    <Home
+                        user={user}
+                        sensors={sensor}
+                        trustedContact={trustedContact}
+                        setActiveRoute={handleRouteChange}
                     />
                 );
             case "LiveGps":
                 return (
-                <LiveGps 
-                    metrics={metrics}
-                />
+                    <LiveGps
+                        trustedContact={trustedContact}
+                    />
                 )
             case "ContactPersons":
                 return (
-                    <ContactPersons 
-                        setActiveRoute={setActiveRoute} 
+                    <ContactPersons
+                        setActiveRoute={handleRouteChange}
                         trustedContact={trustedContact}
                     />
                 )
             case "Devices":
                 return <Devices />;
             case "Notifications":
-                return <Notifications notifications={notifications}/>;
+                return <Notifications notifications={notifications} />;
             case "Settings":
-                return <Settings user={user} setActiveRoute={setActiveRoute}/>;
+                return <Settings userIndex={index} user={user} setActiveRoute={handleRouteChange} updateUser={handleUpdateUser} />;
             default:
                 return <Home user={user} sensors={sensor} trustedContact={trustedContact} setActiveRoute={setActiveRoute} />;
         }
@@ -108,10 +132,7 @@ export default function MainLayout() {
     // If on Login, hide sidebar completely
     if (activeRoute === "Login") {
         return (
-            <Login 
-                onLoginSuccess={() => {
-                    setActiveRoute("Home")
-                }} 
+            <Login
             />
         )
     }
@@ -123,7 +144,7 @@ export default function MainLayout() {
                 buttons={buttons}
                 showSidebar={showSidebar}
                 setShowSidebar={setShowSidebar}
-                setActiveRoute={setActiveRoute}
+                setActiveRoute={handleRouteChange}
                 activeRoute={activeRoute}
                 footer={footer}
             />
@@ -133,6 +154,7 @@ export default function MainLayout() {
                 <TopBar onBurgerClick={() => setShowSidebar(!showSidebar)} />
 
                 <ScrollView
+                    ref={scrollRef}
                     style={{ flex: 1 }}
                     contentContainerStyle={{ flexGrow: 1 }} // allows ScrollView to grow
                 >

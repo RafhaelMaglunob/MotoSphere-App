@@ -3,19 +3,43 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, TextInput, View, ImageBackground, Pressable } from 'react-native';
 
-interface LoginProps {
-  onLoginSuccess?: () => void; // optional callback for successful login
-}
+import { users } from '@/components/services/users';
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+import MainLayout from './(tabs)/MainLayout';
+
+export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const router = useRouter();
 
   const handleLogin = () => {
-    // logic, validation, API, etc.
-    router.replace('/(tabs)/Home'); // Navigate to Home inside MainLayout
-  }
+    const foundUser = users.find(
+      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+    );
 
+    const userIndex = users.findIndex(
+      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+    );
+
+
+    if (!foundUser) {
+      setError('Invalid email or password');
+      return;
+    }
+
+    // Clear error
+    setError('');
+
+    // You can optionally pass the user to context/state here
+
+    //router.replace("(tabs)/Home")
+    router.push({
+      pathname: '/(tabs)/MainLayout',
+      params: { index: userIndex }
+    });
+  };
 
   return (
     <ImageBackground
@@ -25,13 +49,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     >
       <View style={styles.loginContainer}>
         <Text style={styles.text}>Log in to MotoSphere</Text>
-        <Text
-          style={{
-            color: '#94A3B8',
-            textAlign: 'center',
-            marginTop: 15, // number, not string
-          }}
-        >
+        <Text style={{ color: '#94A3B8', textAlign: 'center', marginTop: 15 }}>
           Access your ride logs, live tracking, and emergency notifications.
         </Text>
 
@@ -43,6 +61,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               placeholder="e.g motosphere@example.com"
               placeholderTextColor="#CCCCCC"
               style={styles.input}
+              value={email}
+              onChangeText={setEmail}
             />
           </View>
 
@@ -53,9 +73,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               placeholderTextColor="#CCCCCC"
               secureTextEntry={!showPassword}
               style={styles.input}
+              value={password}
+              onChangeText={setPassword}
             />
           </View>
         </View>
+
+        {error ? <Text style={{ color: '#EF4444', marginTop: 8 }}>{error}</Text> : null}
 
         {/* Checkbox */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginTop: 16 }}>
@@ -65,29 +89,27 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 width: 22,
                 height: 22,
                 borderRadius: 6,
-                backgroundColor: showPassword === false ? '#fff' : '#3f99eeff'
+                backgroundColor: showPassword ? '#3f99eeff' : '#fff',
               }}
-              onPress={() => setShowPassword((prev) => !prev)}
+              onPress={() => setShowPassword(prev => !prev)}
             />
             <Text style={{ color: '#94A3B8' }}>Show Password</Text>
           </View>
-          <Pressable><Text style={{ color: '#22D3EE' }}>Forgot Password?</Text></Pressable>
+          <Pressable>
+            <Text style={{ color: '#22D3EE' }}>Forgot Password?</Text>
+          </Pressable>
         </View>
-            
+
         {/* Login Button */}
         <Pressable onPress={handleLogin}>
-          <Text style={styles.loginButton}>
-            Log In
-          </Text>
+          <Text style={styles.loginButton}>Log In</Text>
         </Pressable>
 
         {/* Registration */}
-        <View style={{flexDirection: 'row', gap: 15, justifyContent: 'center', width: '100%'}}>
-          <Text style={{ color: '#94A3B8', fontSize: 12 }}>Dont have an account yet?</Text>
+        <View style={{ flexDirection: 'row', gap: 15, justifyContent: 'center', width: '100%' }}>
+          <Text style={{ color: '#94A3B8', fontSize: 12 }}>Don't have an account yet?</Text>
           <Pressable onPress={() => router.push('/Register')}>
-            <Text style={{ color: '#22D3EE', fontSize: 12 }}>
-              Create an Account
-            </Text>
+            <Text style={{ color: '#22D3EE', fontSize: 12 }}>Create an Account</Text>
           </Pressable>
         </View>
       </View>
@@ -97,33 +119,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center', // center vertically
-    alignItems: 'center',     // center horizontally
-    width: '100%',
-    height: '100%'
-  },
-  loginContainer: {
-    width: '90%',
-    backgroundColor: 'rgba(15, 23, 41, 0.8)',
-    borderRadius: 40,
-    padding: 30
-  },
-  text: {
-    color: '#fff',
-    fontSize: 23,
-    fontWeight: '700',
-    textAlign: 'center'
-  },
-  input: {
-    backgroundColor: 'rgba(10, 14, 39, 0.5)',
-    borderRadius: 8,
-    color: '#fff',
-    fontSize: 16,
-    paddingHorizontal: 20,
-    height: 48,
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' },
+  loginContainer: { width: '90%', backgroundColor: 'rgba(15, 23, 41, 0.8)', borderRadius: 40, padding: 30 },
+  text: { color: '#fff', fontSize: 23, fontWeight: '700', textAlign: 'center' },
+  input: { backgroundColor: 'rgba(10, 14, 39, 0.5)', borderRadius: 8, color: '#fff', fontSize: 16, paddingHorizontal: 20, height: 48 },
   loginButton: {
     marginTop: 25,
     marginBottom: 50,
@@ -135,5 +134,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#06B6D4',
     color: '#fff',
     boxShadow: '0px 4px 10px rgba(0, 212, 255, 0.5)',
-  }
+  },
 });

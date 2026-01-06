@@ -3,11 +3,14 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, TextInput, View, Pressable, ScrollView, Dimensions } from 'react-native';
 
+import { addUser, users } from '@/components/services/users';
+
 export default function Register() {
     const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
     const screenHeight = Dimensions.get('window').height;
 
+    const [role, setRole] = useState('Rider');
     const [email, setEmail] = useState('');
     const [contact, setContact] = useState('');
     const [password, setPassword] = useState('');
@@ -70,18 +73,31 @@ export default function Register() {
     };
 
     const handlePasswordChange = (value: string) => {
-        setPassword(value)
+        setPassword(value);
 
-        const pattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+[\]{};':"\\|,.<>/?-]).+$/;
+        const pattern = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\[\]{};':"\\|,.<>\/?~-]).+$/;
 
+        // Validate password pattern and length
+        let pwdError = '';
         if (!pattern.test(value)) {
-            setError(prev => ({ ...prev, password: 'Password must have 1 capital letter, 1 digit, and 1 symbol' }))
+            pwdError = 'Password must have 1 capital letter, 1 digit, and 1 symbol';
         } else if (value.length < 8 || value.length > 15) {
-            setError(prev => ({ ...prev, password: 'Password must be 8-15 characters long' }))
-        } else {
-            setError(prev => ({ ...prev, password: '' }))
+            pwdError = 'Password must be 8-15 characters long';
         }
-    }
+
+        // Validate confirm password match
+        let confirmError = '';
+        if (confirmPassword && value !== confirmPassword) {
+            confirmError = 'Password do not match';
+        }
+
+        setError(prev => ({
+            ...prev,
+            password: pwdError,
+            confirmPassword: confirmError,
+        }));
+    };
+
 
     const handleConfirmPasswordChange = (value: string) => {
         setConfirmPassword(value)
@@ -96,9 +112,7 @@ export default function Register() {
     const handleRegister = () => {
         const hasError = Object.values(error).some((e) => e !== '');
 
-        if (hasError) {
-            return;
-        }
+        if (hasError) return;
 
         if (!email || !contact || !password || !confirmPassword) {
             setError(prev => ({
@@ -111,13 +125,36 @@ export default function Register() {
             return;
         }
 
-        router.push('/MainLayout')
-    }
+        // Check if email already exists
+        const emailExists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
+        if (emailExists) {
+            setError(prev => ({ ...prev, email: 'This email is already registered.' }));
+            return;
+        }
+        // Here, add the user to the in-memory storage
+        const newUser = addUser({
+            name: email.split('@')[0], // default name from email
+            email,
+            password,
+            contactNo: contact.replace(/\s/g, ''), // remove spaces
+            role
+        });
+
+        const userIndex = users.findIndex(u => u.email.toLowerCase() === newUser.email.toLowerCase());
+        console.log('New User:', newUser); // optional: check user in console
+
+        // redirect to main layout
+        router.push({
+            pathname: '/(tabs)/MainLayout',
+            params: { index: userIndex }
+        });
+    };
+
 
     return (
-        <View style={{ flex: 1, justifyContent: 'center' }}> 
+        <View style={{ flex: 1, justifyContent: 'center' }}>
             <ScrollView
-                contentContainerStyle={[styles.outerContainer, { flexGrow: 1}]}
+                contentContainerStyle={[styles.outerContainer, { flexGrow: 1 }]}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
@@ -131,7 +168,6 @@ export default function Register() {
                         contentContainerStyle={styles.formContent}
                         keyboardShouldPersistTaps="handled"
                         showsVerticalScrollIndicator={false}
-                        nestedScrollEnabled={true}
                     >
                         {/* Email */}
                         <Text style={styles.label}>Email or Username</Text>
@@ -153,6 +189,29 @@ export default function Register() {
                             onChangeText={handleEmailChange}
                         />
                         {error.email ? <Text style={styles.errorText}>{error.email}</Text> : null}
+
+                        {/* Role Picker */}
+                        <Text style={styles.label}>Role</Text>
+                        <View style={{ flexDirection: 'row', marginTop: 10, gap: 10 }}>
+                            {['Rider', 'Emergency Contact'].map((r) => (
+                                <Pressable
+                                    key={r}
+                                    onPress={() => setRole(r)}
+                                    style={{
+                                        flex: 1,
+                                        paddingVertical: 12,
+                                        borderRadius: 8,
+                                        backgroundColor: role === r ? '#06B6D4' : 'rgba(10,14,39,0.5)',
+                                        alignItems: 'center'
+                                    }}
+                                >
+                                    <Text style={{ color: role === r ? '#fff' : '#ccc', fontWeight: '500' }}>{r}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+
+
+
 
                         {/* Contact No. */}
                         <Text style={styles.label}>Contact No.</Text>
