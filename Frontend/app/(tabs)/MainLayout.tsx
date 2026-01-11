@@ -18,8 +18,8 @@ import Settings from "./Settings";
 import { User, Sensor, TrustedContact, GpsMetrics, Notification } from "../../components/services/types";
 import { mockSensor, mockTrustedContact, mockNotification } from "../../components/services/data";
 
-import { users } from "@/components/services/users";
-import { contacts } from "@/components/services/trustedContacts";
+import { users } from "../../components/services/users";
+import { contacts } from "../../components/services/trustedContacts";
 
 export default function MainLayout(props: { index?: string }) {
     const params = useSearchParams(); // returns URLSearchParams
@@ -70,6 +70,10 @@ export default function MainLayout(props: { index?: string }) {
         // Update state so React re-renders
         setCurrentUser(updated);
     };
+
+    // ContactPersons Function
+    
+
 
     const footer = (
         <View style={{ marginTop: "auto", paddingHorizontal: 20, paddingBottom: 20 }}>
@@ -156,7 +160,6 @@ export default function MainLayout(props: { index?: string }) {
             {/* Main content */}
             <View style={{ flex: 1 }}>
                 <TopBar onBurgerClick={() => setShowSidebar(!showSidebar)} />
-
                 <ScrollView
                     ref={scrollRef}
                     style={{ flex: 1 }}

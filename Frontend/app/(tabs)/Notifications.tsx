@@ -1,13 +1,13 @@
 import { View, Text, Pressable } from "react-native";
 
-import { SummaryIcon } from "@/components/svg/SummaryIcon";
-import { WarningIcon } from "@/components/svg/WarningIcon";
-import { UpdateIcon } from "@/components/svg/UpdateIcon";
-import { ClockIcon } from "@/components/svg/ClockIcon";
+import { SummaryIcon } from "../../components/svg/SummaryIcon";
+import { WarningIcon } from "../../components/svg/WarningIcon";
+import { UpdateIcon } from "../../components/svg/UpdateIcon";
+import { ClockIcon } from "../../components/svg/ClockIcon";
 
 import { useState } from "react";
 
-import { Notification } from "@/components/services/types";
+import { Notification } from "../../components/services/types";
 
 type IconType = "alert" | "summary" | "system";
 

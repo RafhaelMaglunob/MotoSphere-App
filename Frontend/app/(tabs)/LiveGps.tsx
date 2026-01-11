@@ -95,11 +95,12 @@ export default function LiveGps({ trustedContact }: LiveGpsProps) {
       </Text>
 
       {/* Action Buttons */}
-      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 15 }}>
+      {/*<View style={{ flexDirection: "row", justifyContent: "space-between", gap: 15 }}>
         <ActionButton icon={HistoryIcon} title="History" bgColor="#0F2A52" onPress={() => console.log("History pressed")} />
         <ActionButton icon={ShareIcon} title="Share" bgColor="#2EA8FF" onPress={() => console.log("Share pressed")} />
       </View>
-
+        */}
+         
       {/* Map + Metrics */}
       <LinearGradient
         colors={["#000000", "#000000", "#1a1c1fff", "#000000"]}

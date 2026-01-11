@@ -21,6 +21,7 @@ export interface User {
 }
 
 export interface TrustedContact {
+  ownerEmail: string,
   name: string
   relation: string
   contactNo: string

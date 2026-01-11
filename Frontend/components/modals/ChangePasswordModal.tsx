@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Modal, View, Text, TextInput, Pressable } from "react-native";
-import { User } from "@/components/services/types";
-import { users } from "@/components/services/users";
+import { User } from "../../components/services/types";
+import { users } from "../../components/services/users";
 
 interface Props {
   visible: boolean;

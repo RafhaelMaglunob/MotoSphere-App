@@ -12,7 +12,13 @@
       "supportsTablet": true,
       "bundleIdentifier": "MotoSphere.com",
       "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to devices.",
+        "NSCameraUsageDescription": "This app needs camera access for scanning QR codes.",
+        "NSLocationWhenInUseUsageDescription": "Location is used to track your rides.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "googleMapsApiKey": "YOUR_IOS_GOOGLE_MAPS_API_KEY"
       }
     },
     "android": {
@@ -34,10 +40,6 @@
         }
       },
       "package": "com.motosphere.app"
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",

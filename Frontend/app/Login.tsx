@@ -3,9 +3,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, TextInput, View, ImageBackground, Pressable } from 'react-native';
 
-import { users } from '@/components/services/users';
-
-import MainLayout from './(tabs)/MainLayout';
+import { loginUser } from '../services/controller/authController';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,31 +12,21 @@ export default function Login() {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  const handleLogin = () => {
-    const foundUser = users.find(
-      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
+  const handleLogin = async () => {
+    try {
+      // Call the authController
+      const { uid } = await loginUser(email, password);
 
-    const userIndex = users.findIndex(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
+      setError(''); // clear error
 
-
-    if (!foundUser) {
-      setError('Invalid email or password');
-      return;
+      // Navigate to MainLayout
+      router.push({
+        pathname: '/(tabs)/MainLayout',
+        params: { uid }
+      });
+    } catch (err: any) {
+      setError(err.message);
     }
-
-    // Clear error
-    setError('');
-
-    // You can optionally pass the user to context/state here
-
-    //router.replace("(tabs)/Home")
-    router.push({
-      pathname: '/(tabs)/MainLayout',
-      params: { index: userIndex }
-    });
   };
 
   return (

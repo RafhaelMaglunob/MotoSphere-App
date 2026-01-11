@@ -9,10 +9,10 @@ import { DeleteIcon } from "../../components/svg/DeleteIcon";
 import { EditIcon } from "../../components/svg/EditIcon";
 
 import { TrustedContact } from "../../components/services/types";
-import AddContactModal from "@/components/modals/AddContactModal";
-import EditContactModal from "@/components/modals/EditContactModal";
+import AddContactModal from "../../components/modals/AddContactModal";
+import EditContactModal from "../../components/modals/EditContactModal";
 
-import { addTrustedContact, contacts } from "@/components/services/trustedContacts";
+import { addTrustedContact, contacts } from "../../components/services/trustedContacts";
 
 interface ContactPersonsProps {
   setActiveRoute: (route: string) => void;
@@ -32,6 +32,7 @@ export default function ContactPersons({ setActiveRoute, currentUserEmail }: Con
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [reload, setReload] = useState(0);
+
 
   const [currentContact, setCurrentContact] = useState<TrustedContact[]>(contacts);
 
@@ -90,6 +91,7 @@ export default function ContactPersons({ setActiveRoute, currentUserEmail }: Con
       setReload(prev => prev + 1); // re-render
     }
     handleUpdateContact(targetContact)
+    setReload(prev => prev + 1)
   };
 
 
@@ -112,6 +114,7 @@ export default function ContactPersons({ setActiveRoute, currentUserEmail }: Con
     setShowModal(false);
 
     handleUpdateContact(newContact);
+    setReload(prev => prev + 1)
   };
 
   const handleUpdateContact = (updateContact: TrustedContact) => {

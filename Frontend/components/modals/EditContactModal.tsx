@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, View, Text, TextInput, Pressable, StyleSheet, Platform } from "react-native";
-import { TrustedContact } from "@/components/services/types";
+import { TrustedContact } from "../../components/services/types";
 
 interface EditContactModalProps {
     visible: boolean;

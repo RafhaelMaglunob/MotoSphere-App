@@ -13,6 +13,7 @@ import SensorIcon from "../../components/svg/SensorIcon";
 import RightArrowIcon from "../../components/svg/RightArrowIcon";
 
 import { Sensor, User, TrustedContact } from "../../components/services/types";
+import { contacts } from "../../components/services/trustedContacts";
 
 interface HomeProps {
     user: User
@@ -303,9 +304,9 @@ export default function Home({ user, sensors, trustedContact, setActiveRoute }: 
 
                 <View style={{ flexDirection: 'column', gap: 20}}>
                     
-                    {/* Maximum can be shown is 2 contacts */}
+                    {/* Maximum can bez shown is 2 contacts */}
                     {/* It fetch everything but it only will show 2 contacts */}
-                    {trustedContact.slice(0, 2).map((contact, index) => (
+                    {contacts.slice(0, 2).map((contact, index) => (
                         <View
                             key={index}
                             style={{
@@ -419,7 +420,7 @@ export default function Home({ user, sensors, trustedContact, setActiveRoute }: 
                             color: '#94A3B8'
                         }}
                     >
-                        and {trustedContact.length - 2} others not shown
+                        and {contacts.length} others not shown
                     </Text>
                 </View>
             </View>

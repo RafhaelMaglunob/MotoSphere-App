@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { View, Text, Pressable, TextInput, Image, Alert } from "react-native";
 
-import { User } from "@/components/services/types";
+import { User } from "../../components/services/types";
 
-import UserIcon from "@/components/svg/ProfileIcon";
-import LockIcon from "@/components/svg/LockIcon";
-import { BellIcon } from "@/components/svg/BellIcon";
+import UserIcon from "../../components/svg/ProfileIcon";
+import LockIcon from "../../components/svg/LockIcon";
+import { BellIcon } from "../../components/svg/BellIcon";
 
-import VerifyEmailModal from "@/components/modals/VerifyEmailModal";
-import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
+import VerifyEmailModal from "../../components/modals/VerifyEmailModal";
+import ChangePasswordModal from "../../components/modals/ChangePasswordModal";
 
 interface SettingsProps {
   userIndex: number;
@@ -37,7 +37,6 @@ export default function Settings({ userIndex, user, setActiveRoute, updateUser }
 
   const buttons = [
     { type: 'profile', name: 'Profile Settings', icon: UserIcon },
-    { type: 'notification', name: 'Notifications', icon: BellIcon }
   ];
 
   const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com'];
