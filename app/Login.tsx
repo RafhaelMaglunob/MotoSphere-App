@@ -15,10 +15,10 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (loading) return;
-    
+
     // Clear previous error
     setError('');
-    
+
     // Basic validation before API call
     if (!email.trim()) {
       setError('Please enter your email');
@@ -41,10 +41,12 @@ export default function Login() {
         pathname: '/(tabs)/MainLayout',
         params: { uid }
       });
+
+      // Don't set loading to false here - let the component unmount
     } catch (err: any) {
-      console.error('Login failed:', err.message);
+      console.error('❌ Login failed:', err.message);
       setError(err.message || 'Login failed. Please try again');
-      setLoading(false);
+      setLoading(false); // Only reset loading on error
     }
   };
 

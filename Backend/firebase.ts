@@ -1,8 +1,12 @@
 // Backend/firebase.ts
 import { initializeApp } from "firebase/app";
-import { initializeAuth, getReactNativePersistence } from "firebase/auth";
+import {
+  initializeAuth,
+  // @ts-ignore - getReactNativePersistence exists at runtime but may have type issues
+  getReactNativePersistence,
+} from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 
 const extra = Constants.expoConfig?.extra as {
@@ -30,7 +34,7 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Auth with AsyncStorage persistence
 const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
 });
 
 console.log('✅ Firebase Auth initialized with AsyncStorage persistence');

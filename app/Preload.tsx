@@ -5,12 +5,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { auth } from '../Backend/firebase';
 import { fetchUser } from '../Backend/controller/authController';
 import { useRouter } from 'expo-router';
+import { User } from 'firebase/auth';
 
 export default function Preload() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [status, setStatus] = useState('Initializing...');
     const scaleAnim = React.useRef(new Animated.Value(1)).current;
+    
+    // Dot animations
+    const dot1Anim = React.useRef(new Animated.Value(0.3)).current;
+    const dot2Anim = React.useRef(new Animated.Value(0.6)).current;
+    const dot3Anim = React.useRef(new Animated.Value(1)).current;
 
     // Pulse animation for logo
     useEffect(() => {
@@ -28,11 +34,59 @@ export default function Preload() {
                 }),
             ])
         ).start();
-    }, [scaleAnim]);
+
+        // Animated dots sequence
+        const animateDots = () => {
+            Animated.loop(
+                Animated.sequence([
+                    // Dot 1 lights up
+                    Animated.timing(dot1Anim, {
+                        toValue: 1,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }),
+                    // Dot 2 lights up
+                    Animated.timing(dot2Anim, {
+                        toValue: 1,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }),
+                    // Dot 3 lights up
+                    Animated.timing(dot3Anim, {
+                        toValue: 1,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }),
+                    // All fade back
+                    Animated.parallel([
+                        Animated.timing(dot1Anim, {
+                            toValue: 0.3,
+                            duration: 300,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dot2Anim, {
+                            toValue: 0.3,
+                            duration: 300,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(dot3Anim, {
+                            toValue: 0.3,
+                            duration: 300,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ])
+            ).start();
+        };
+
+        animateDots();
+    }, [scaleAnim, dot1Anim, dot2Anim, dot3Anim]);
 
     useEffect(() => {
         const init = async () => {
             try {
+                console.log('🚀 Preload: Starting initialization...');
+                
                 // 1️⃣ Warm up Firebase connection
                 setStatus('Connecting to Firebase...');
                 await warmupFirebase();
@@ -45,31 +99,53 @@ export default function Preload() {
                 setStatus('Initializing database...');
                 await simulateLogin();
 
-                // 4️⃣ Check if Firebase has an active session
+                // 4️⃣ Wait for Firebase Auth to be ready (increased timeout)
                 setStatus('Checking authentication...');
-                if (auth.currentUser) {
-                    console.log('✅ Firebase session found, fetching user...');
-                    const uid = auth.currentUser.uid;
-
-                    // Try to fetch user (will use cache if available)
-                    const result = await fetchUser(uid);
+                const user = await waitForAuthReady();
+                
+                console.log('📊 Auth state:', {
+                    hasUser: !!user,
+                    uid: user?.uid,
+                    email: user?.email
+                });
+                
+                if (user) {
+                    console.log('✅ Firebase session found, fetching user data for UID:', user.uid);
+                    
+                    // Try to fetch user data
+                    const result = await fetchUser(user.uid);
+                    
+                    console.log('📊 fetchUser result:', {
+                        hasResult: !!result,
+                        hasUserData: !!result?.userData,
+                        resultKeys: result ? Object.keys(result) : [],
+                        userData: result?.userData
+                    });
 
                     if (result?.userData) {
-                        console.log('✅ User data loaded, navigating to MainLayout');
+                        console.log('✅ User data loaded successfully, navigating to MainLayout');
                         // Small delay for smooth transition
                         await new Promise(resolve => setTimeout(resolve, 500));
+                        console.log('🔄 Executing router.replace to /(tabs)/MainLayout');
                         router.replace('/(tabs)/MainLayout');
                         return;
+                    } else {
+                        console.warn('⚠️ User authenticated but no user data found in fetchUser result');
+                        console.warn('⚠️ Redirecting to Login due to missing userData');
                     }
+                } else {
+                    console.log('⚠️ No user returned from waitForAuthReady');
                 }
 
                 // 5️⃣ No active session, go to Login (Firebase is now warmed up)
                 console.log('⚠️ No active session, going to Login');
                 await new Promise(resolve => setTimeout(resolve, 500));
+                console.log('🔄 Executing router.replace to /Login');
                 router.replace('/Login');
 
             } catch (err) {
                 console.error('❌ Preload error:', err);
+                console.error('❌ Error stack:', err instanceof Error ? err.stack : 'No stack');
                 router.replace('/Login');
             } finally {
                 setLoading(false);
@@ -108,11 +184,11 @@ export default function Preload() {
                     <Text style={styles.status}>{status}</Text>
                 </View>
 
-                {/* Loading Dots */}
+                {/* Animated Loading Dots */}
                 <View style={styles.dotsContainer}>
-                    <View style={[styles.dot, styles.dot1]} />
-                    <View style={[styles.dot, styles.dot2]} />
-                    <View style={[styles.dot, styles.dot3]} />
+                    <Animated.View style={[styles.dot, { opacity: dot1Anim }]} />
+                    <Animated.View style={[styles.dot, { opacity: dot2Anim }]} />
+                    <Animated.View style={[styles.dot, { opacity: dot3Anim }]} />
                 </View>
             </View>
 
@@ -192,6 +268,37 @@ async function simulateLogin() {
     }
 }
 
+/**
+ * Wait for Firebase Auth to initialize and return the current user (if any)
+ * This prevents race conditions by waiting for onAuthStateChanged to fire
+ */
+async function waitForAuthReady(): Promise<User | null> {
+    return new Promise((resolve) => {
+        // Check if auth is already initialized
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+            console.log(`✅ Auth already ready - User: ${currentUser.uid}`);
+            resolve(currentUser);
+            return;
+        }
+
+        console.log('⏳ Waiting for auth state change...');
+        
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            console.log(user ? `✅ Auth ready - User: ${user.uid}` : '✅ Auth ready - No user');
+            unsubscribe();
+            resolve(user);
+        });
+
+        // Increased timeout to 20 seconds to allow AsyncStorage to load
+        setTimeout(() => {
+            console.warn('⚠️ Auth initialization timeout (20s)');
+            unsubscribe();
+            resolve(null);
+        }, 20000);
+    });
+}
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -254,15 +361,6 @@ const styles = StyleSheet.create({
         height: 8,
         borderRadius: 4,
         backgroundColor: '#06B6D4',
-    },
-    dot1: {
-        opacity: 0.3,
-    },
-    dot2: {
-        opacity: 0.6,
-    },
-    dot3: {
-        opacity: 1,
     },
     footer: {
         paddingBottom: 30,
