@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <Text style={{ color: '#fff', fontSize: 20 }}>X</Text>
                 </Pressable>
                 <View style={{ justifyContent: 'center', alignItems: 'center'}}>
-                    <Image source={require('../img/MotoSphere Logo.png')} />
+                    <Image style={{ height: 60, width: 60}} source={require('../img/MotoSphere Logo.png')} />
                 </View>
 
                 <ScrollView style={{ flex: 1 }}>

@@ -1,9 +1,8 @@
-//MainLayout.tsx
-
-import React,{ useState, useRef } from "react";
-import { useSearchParams } from "expo-router/build/hooks";
-import { ScrollView, View, Text, Pressable, Image } from "react-native";
+// app/(tabs)/MainLayout.tsx
+import React, { useState, useRef, useEffect } from "react";
+import { ScrollView, View, Text, Pressable, Image, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import TopBar from "../../components/ui/TopBar";
 import Sidebar from "../../components/ui/Sidebar";
 
@@ -15,29 +14,62 @@ import Devices from "./Devices";
 import Notifications from "./Notifications";
 import Settings from "./Settings";
 
-import { User, Sensor, TrustedContact, GpsMetrics, Notification } from "../../components/services/types";
-import { mockSensor, mockTrustedContact, mockNotification } from "../../components/services/data";
-
-import { users } from "../../components/services/users";
+import { User, Sensor, TrustedContact, Notification } from "../../components/services/types";
+import { mockSensor, mockNotification } from "../../components/services/data";
 import { contacts } from "../../components/services/trustedContacts";
 
-export default function MainLayout(props: { index?: string }) {
-    const params = useSearchParams(); // returns URLSearchParams
-    const index = Number(props.index ?? params.get('index') ?? -1);
+// Firebase
+import { auth } from "../../Backend/firebase";
+import { fetchUser, logoutUser } from "../../Backend/controller/authController";
+import { getUserData } from "../../Backend/secureStore";
 
+export default function MainLayout() {
     const scrollRef = useRef<ScrollView>(null);
+    const router = useRouter();
 
-    const [currentUser, setCurrentUser] = useState<User>(users[index]);
+    const [user, setUser] = useState<User | null>(null);
+    const [trustedContact, setTrustedContact] = useState<TrustedContact[]>([]);
     const [activeRoute, setActiveRoute] = useState("Home");
     const [showSidebar, setShowSidebar] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const user: User = users[index];
-    const sensor: Sensor[] = mockSensor;
-    const trustedContact: TrustedContact[] = contacts.filter(
-        (c) => c.ownerEmail === user.email
-    );
-
+    const sensors: Sensor[] = mockSensor;
     const notifications: Notification[] = mockNotification;
+
+    // Load user on mount
+    useEffect(() => {
+        const loadUser = async () => {
+            try {
+                const current = auth.currentUser;
+                if (!current) {
+                    setIsLoading(false);
+                    return;
+                }
+
+                // 1️⃣ Try to load cached data first (instant)
+                const cached = await getUserData();
+                if (cached?.userData) {
+                    setUser(cached.userData);
+                    setTrustedContact(cached.trustedContacts || []);
+                }
+
+                // 2️⃣ Fetch fresh data in background (no await, don't block UI)
+                fetchUser(current.uid).then(result => {
+                    if (result) {
+                        setUser(result.userData);
+                        setTrustedContact(result.trustedContacts);
+                    }
+                }).catch(err => console.error('Background fetch failed:', err));
+
+            } catch (err) {
+                console.error('Failed to load user:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadUser();
+    }, []);
 
     const buttons = [
         { name: "Home", route: "Home" },
@@ -48,49 +80,52 @@ export default function MainLayout(props: { index?: string }) {
         { name: "Settings", route: "Settings" },
     ];
 
-    const handleLogout = () => {
-        //Logic and clearing out all data
-
-        setActiveRoute("Login")
-    }
+    const handleLogout = async () => {
+        try {
+            // 1️⃣ Sign out from Firebase
+            await auth.signOut();
+            
+            // 2️⃣ Clear local cache and token
+            await logoutUser();
+            
+            // 3️⃣ Clear state
+            setUser(null);
+            setTrustedContact([]);
+            setActiveRoute("Home");
+            
+            // 4️⃣ Navigate to Login
+            router.replace('/Login');
+        } catch (err) {
+            console.error("❌ Failed to logout:", err);
+        }
+    };
 
     const handleRouteChange = (route: string) => {
         setActiveRoute(route);
-
-        // Scroll to top whenever route changes
         scrollRef.current?.scrollTo({ y: 0, animated: true });
     };
 
-    const handleUpdateUser = (updatedUser: Partial<User>) => {
-        const updated = { ...currentUser, ...updatedUser };
-
-        // Update the in-memory array as well
-        users[index] = updated;
-
-        // Update state so React re-renders
-        setCurrentUser(updated);
-    };
-
-    // ContactPersons Function
-    
-
-
     const footer = (
         <View style={{ marginTop: "auto", paddingHorizontal: 20, paddingBottom: 20 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
-                <View
-                    style={{
-                        backgroundColor: "rgba(6,182,212,0.2)",
-                        padding: 8,
-                        borderRadius: 50,
-                        marginRight: 10,
-                    }}
-                />
-                <View>
-                    <Text style={{ color: "#fff", fontWeight: "bold" }}>{user.name}</Text>
-                    <Text style={{ color: "#9BB3D6", fontSize: 12 }}>{user.role}</Text>
+            {user ? (
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 15 }}>
+                    <View
+                        style={{
+                            backgroundColor: "rgba(6,182,212,0.2)",
+                            padding: 8,
+                            borderRadius: 50,
+                            marginRight: 10,
+                        }}
+                    />
+                    <View>
+                        <Text style={{ color: "#fff", fontWeight: "bold" }}>{user.name}</Text>
+                        <Text style={{ color: "#9BB3D6", fontSize: 12 }}>{user.role}</Text>
+                    </View>
                 </View>
-            </View>
+            ) : (
+                <ActivityIndicator size="small" color="#06B6D4" style={{ marginBottom: 15 }} />
+            )}
+
             <Pressable onPress={() => handleLogout()} style={{ flexDirection: "row", alignItems: "center" }}>
                 <Image
                     source={require("../../components/img/Logout.png")}
@@ -101,53 +136,37 @@ export default function MainLayout(props: { index?: string }) {
         </View>
     );
 
-    // Render main content
     const renderScreen = () => {
+        if (!user) {
+            return (
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+                    <ActivityIndicator size="large" color="#06B6D4" />
+                    <Text style={{ color: "#9BB3D6", marginTop: 10 }}>Loading...</Text>
+                </View>
+            );
+        }
+
         switch (activeRoute) {
             case "Home":
-                return (
-                    <Home
-                        user={user}
-                        sensors={sensor}
-                        trustedContact={trustedContact}
-                        setActiveRoute={handleRouteChange}
-                    />
-                );
+                return <Home user={user} sensors={sensors} trustedContact={trustedContact} setActiveRoute={handleRouteChange} />;
             case "LiveGps":
-                return (
-                    <LiveGps
-                        trustedContact={trustedContact}
-                    />
-                )
+                return <LiveGps trustedContact={trustedContact} />;
             case "ContactPersons":
-                return (
-                    <ContactPersons
-                        setActiveRoute={handleRouteChange}
-                        currentUserEmail={user.email}
-                    />
-                )
+                return <ContactPersons setActiveRoute={handleRouteChange} currentUserEmail={user.email} />;
             case "Devices":
                 return <Devices />;
             case "Notifications":
                 return <Notifications notifications={notifications} />;
             case "Settings":
-                return <Settings userIndex={index} user={user} setActiveRoute={handleRouteChange} updateUser={handleUpdateUser} />;
             default:
-                return <Home user={user} sensors={sensor} trustedContact={trustedContact} setActiveRoute={setActiveRoute} />;
+                return <Home user={user} sensors={sensors} trustedContact={trustedContact} setActiveRoute={handleRouteChange} />;
         }
     };
 
-    // If on Login, hide sidebar completely
-    if (activeRoute === "Login") {
-        return (
-            <Login
-            />
-        )
-    }
+    if (activeRoute === "Login") return <Login />;
 
     return (
         <View style={{ flex: 1, flexDirection: "row", backgroundColor: "#0a1a3a" }}>
-            {/* Sidebar */}
             <Sidebar
                 buttons={buttons}
                 showSidebar={showSidebar}
@@ -157,14 +176,9 @@ export default function MainLayout(props: { index?: string }) {
                 footer={footer}
             />
 
-            {/* Main content */}
             <View style={{ flex: 1 }}>
                 <TopBar onBurgerClick={() => setShowSidebar(!showSidebar)} />
-                <ScrollView
-                    ref={scrollRef}
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{ flexGrow: 1 }} // allows ScrollView to grow
-                >
+                <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
                     <LinearGradient
                         colors={["#0A1A3A", "#0F2A52", "#0A1A3A"]}
                         locations={[0, 0.5, 1]}

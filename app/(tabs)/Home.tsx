@@ -68,7 +68,7 @@ export default function Home({ user, sensors, trustedContact, setActiveRoute }: 
                         marginTop: 5
                     }}
                 >
-                    Your helmet is {user.connection} and systems are {user.system}.
+                    Your helmet is connected and systems are optimized.
                 </Text>
             </LinearGradient>
 
@@ -115,7 +115,7 @@ export default function Home({ user, sensors, trustedContact, setActiveRoute }: 
                                 color: '#4ADE80'
                             }}
                         >
-                            {user.connection.charAt(0).toUpperCase() + user.connection.slice(1)}
+                            Connected
                         </Text>
                     </View>
                 </View>

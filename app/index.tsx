@@ -12,7 +12,7 @@ export default function Index() {
 
   useEffect(() => {
     if (mounted) {
-      router.replace('/Login'); // redirect only after mount
+      router.replace('/Preload'); // redirect only after mount
     }
   }, [mounted]);
 

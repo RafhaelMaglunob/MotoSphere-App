@@ -3,13 +3,13 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-config.resolver.platforms = ['ios', 'android', 'web'];
+// ONLY extend, never replace
+if (!config.resolver.sourceExts.includes('mjs')) {
+  config.resolver.sourceExts.push('mjs');
+}
 
-config.resolver.sourceExts = [
-  'tsx', 'ts', 'jsx', 'js', 'json',
-  'web.tsx', 'web.ts', 'web.jsx', 'web.js',
-  'cjs',
-  'mjs', // <-- must include mjs for Firebase
-];
+if (!config.resolver.sourceExts.includes('cjs')) {
+  config.resolver.sourceExts.push('cjs');
+}
 
 module.exports = config;

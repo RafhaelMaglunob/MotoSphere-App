@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, TextInput, View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, Image, Text, TextInput, View, Pressable, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { registerUser } from '../Backend/controller/authController';
 
 export default function Register() {
@@ -15,6 +15,7 @@ export default function Register() {
     const [contact, setContact] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const [error, setError] = useState({ fullName: '', email: '', contact: '', password: '', confirmPassword: '' });
     const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com'];
@@ -22,10 +23,10 @@ export default function Register() {
     // Fullname validation - Fixed to properly handle spaces
     const handleFullNameChange = (value: string) => {
         // Remove leading/trailing spaces but keep spaces between words
-        const cleaned = value.replace(/^\s+/, '').replace(/\s+$/, '');
+        const cleaned = value.replace(/^\s+/, '').replace(/\s+$/, ' ');
         // Replace multiple consecutive spaces with single space
         const normalized = cleaned.replace(/\s+/g, ' ');
-        
+
         setFullname(normalized);
 
         const pattern = /^[A-Za-z\s]*$/;
@@ -104,7 +105,7 @@ export default function Register() {
     // Firebase registration
     const handleRegister = async () => {
         const hasError = Object.values(error).some(e => e !== '');
-        if (hasError) return;
+        if (hasError || loading) return; // prevent multiple presses
 
         if (!fullname || !email || !contact || !password || !confirmPassword) {
             setError(prev => ({
@@ -119,6 +120,7 @@ export default function Register() {
         }
 
         try {
+            setLoading(true); // disable button
             const { uid } = await registerUser(
                 fullname,
                 email,
@@ -132,22 +134,34 @@ export default function Register() {
                 pathname: '/(tabs)/MainLayout',
                 params: { uid }
             });
-
         } catch (err: any) {
             console.error('Registration failed:', err.message);
             setError(prev => ({ ...prev, email: err.message }));
+        } finally {
+            setLoading(false); // re-enable button if there was an error
         }
     };
 
     return (
         <View style={{ flex: 1, backgroundColor: '#0A0E27' }}>
-            <KeyboardAvoidingView 
-                style={{ flex: 1 }} 
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={0}
             >
                 <View style={styles.outerContainer}>
                     <View style={styles.loginContainer}>
+                        <View
+                            style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}
+                        >
+                            <Image
+                                style={{
+                                    height: 60,
+                                    width: 60
+                                }}
+                                source={require('../components/img/MotoSphere Logo.png')}
+                            />
+                        </View>
                         <View>
                             <Text style={styles.title}>Register</Text>
                             <Text style={styles.subtitle}>Create your MotoSphere account</Text>
@@ -251,9 +265,19 @@ export default function Register() {
                             </View>
 
                             {/* Register Button */}
-                            <Pressable onPress={handleRegister} style={styles.button}>
-                                <Text style={styles.buttonText}>Register</Text>
+                            <Pressable
+                                onPress={handleRegister}
+                                style={[
+                                    styles.button,
+                                    { backgroundColor: loading ? 'rgba(6,182,212,0.5)' : '#06B6D4' }
+                                ]}
+                                disabled={loading} // disables touch
+                            >
+                                <Text style={styles.buttonText}>
+                                    {loading ? 'Registering...' : 'Register'}
+                                </Text>
                             </Pressable>
+
 
                             {/* Login Link */}
                             <View style={styles.rowCenter}>
@@ -272,92 +296,92 @@ export default function Register() {
 }
 
 const styles = StyleSheet.create({
-    outerContainer: { 
+    outerContainer: {
         flex: 1,
-        justifyContent: 'center', 
-        alignItems: 'center', 
+        justifyContent: 'center',
+        alignItems: 'center',
         padding: 20
     },
-    loginContainer: { 
-        width: '100%', 
+    loginContainer: {
+        width: '100%',
         maxWidth: 500,
         maxHeight: '80%',
-        backgroundColor: 'rgba(15, 23, 41, 0.8)', 
-        borderRadius: 40, 
-        padding: 30,
+        backgroundColor: 'rgba(15, 23, 41, 0.8)',
+        borderRadius: 40,
+        paddingHorizontal: 30,
+        paddingVertical: 20,
         overflow: 'hidden'
     },
     formScrollView: {
-        flex: 1,
         marginTop: 20
     },
-    formContainer: { 
+    formContainer: {
         paddingBottom: 20
     },
-    title: { 
-        color: '#fff', 
-        fontSize: 28, 
-        fontWeight: '900', 
-        textAlign: 'center' 
+    title: {
+        color: '#fff',
+        fontSize: 28,
+        fontWeight: '900',
+        textAlign: 'center'
     },
-    subtitle: { 
-        color: '#94A3B8', 
-        textAlign: 'center', 
-        marginTop: 10 
+    subtitle: {
+        color: '#94A3B8',
+        textAlign: 'center',
+        marginTop: 10
     },
-    label: { 
-        color: '#CBD5E1', 
-        marginTop: 15, 
-        fontSize: 15 
+    label: {
+        color: '#CBD5E1',
+        marginTop: 15,
+        fontSize: 15
     },
-    input: { 
-        backgroundColor: 'rgba(10, 14, 39, 0.5)', 
-        borderRadius: 8, 
-        color: '#fff', 
-        fontSize: 16, 
-        paddingHorizontal: 20, 
-        height: 48, 
-        marginTop: 5 
+    input: {
+        backgroundColor: 'rgba(10, 14, 39, 0.5)',
+        borderRadius: 8,
+        color: '#fff',
+        fontSize: 16,
+        paddingHorizontal: 20,
+        height: 48,
+        marginTop: 5
     },
-    errorText: { 
-        color: '#EF4444', 
-        marginTop: 5, 
-        fontSize: 13 
+    errorText: {
+        color: '#EF4444',
+        marginTop: 5,
+        fontSize: 13
     },
-    row: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        marginTop: 15 
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 15
     },
-    rowCenter: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        gap: 10, 
-        marginTop: 25 
+    rowCenter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 10,
+        marginTop: 25
     },
-    checkbox: { 
-        width: 22, 
-        height: 22, 
-        borderRadius: 6 
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 6
     },
-    checkboxLabel: { 
-        color: '#94A3B8', 
-        marginLeft: 8 
+    checkboxLabel: {
+        color: '#94A3B8',
+        marginLeft: 8
     },
-    link: { 
-        color: '#22D3EE' 
+    link: {
+        color: '#22D3EE'
     },
-    button: { 
-        marginTop: 20, 
-        backgroundColor: '#06B6D4', 
-        paddingVertical: 15, 
-        borderRadius: 10 
+    button: {
+        marginTop: 20,
+        backgroundColor: '#06B6D4',
+        paddingVertical: 15,
+        borderRadius: 10
     },
-    buttonText: { 
-        color: '#fff', 
-        fontWeight: '500', 
-        textAlign: 'center', 
-        fontSize: 18 
+    buttonText: {
+        color: '#fff',
+        fontWeight: '500',
+        textAlign: 'center',
+        fontSize: 18
     },
 });
