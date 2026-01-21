@@ -34,11 +34,3 @@ export default async function handler(req, res) {
     res.status(500).json({ error: 'Failed to send email' });
   }
 }
-```
-
-**`.env`** (for local testing):
-```
-EMAILJS_SERVICE_ID=service_xxxxx
-EMAILJS_TEMPLATE_ID=template_xxxxx
-EMAILJS_PUBLIC_KEY=your_public_key
-EMAILJS_PRIVATE_KEY=your_private_key
