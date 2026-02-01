@@ -1,0 +1,40 @@
+# Compiled output
+lib/**
+dist/**
+build/**
+
+# Dependencies
+node_modules/**
+
+# Firebase
+.firebase/**
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# TypeScript
+*.js
+*.d.ts
+
+# Environment
+.env
+.env.*
+
+# Logs
+logs/**
+*.log
+npm-debug.log*
+
+# Testing
+coverage/**
+
+# IDE
+.vscode/**
+.idea/**
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

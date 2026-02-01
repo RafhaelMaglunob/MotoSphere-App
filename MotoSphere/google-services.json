@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "242798297710",
+    "project_id": "motospherebsit3b",
+    "storage_bucket": "motospherebsit3b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:242798297710:android:0b38fc72e0738a5db95c7f",
+        "android_client_info": {
+          "package_name": "com.motospheres.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "242798297710-d1jqk1f7u7qp8om874p8r25n0ear4kr7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaG_ddjrh-x39Z_iWbgUp1vmCxisoU6H4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "242798297710-d1jqk1f7u7qp8om874p8r25n0ear4kr7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "242798297710-l4mkudottb8h9ik5dm6312s6und9l1ij.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.motospheres.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,11 @@
+[33m3b3c42f[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: pull origin main --rebase (start): checkout 3b3c42f2b6732d1a1887b8774e10f19bfe36a27c
+[33md47221c[m[33m ([m[1;32mmain[m[33m)[m HEAD@{1}: commit: Updating Settings/Address API/Email Change (EmailJs to Firebase Template)
+[33m79c82e1[m HEAD@{2}: commit: Google Logged in + Email Verification DONE
+[33m4bfe1f1[m[33m ([m[1;32mraf[m[33m)[m HEAD@{3}: checkout: moving from raf to main
+[33m4bfe1f1[m[33m ([m[1;32mraf[m[33m)[m HEAD@{4}: commit: Google Sign in (Not Done)
+[33m528d392[m[33m ([m[1;31morigin/raf[m[33m)[m HEAD@{5}: commit: Adding Preload Simulation for smooth backend connection
+[33m033695f[m HEAD@{6}: commit: Build Successful + Backend Integration
+[33m450c4ab[m HEAD@{7}: commit: Build failed
+[33m00e7168[m[33m ([m[1;32mmaster[m[33m)[m HEAD@{8}: checkout: moving from master to raf
+[33m00e7168[m[33m ([m[1;32mmaster[m[33m)[m HEAD@{9}: commit: Build Failed
+[33m8fb0a3e[m HEAD@{10}: commit (initial): Initial commit
