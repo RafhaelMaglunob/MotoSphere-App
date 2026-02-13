@@ -1,257 +1,593 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  Pressable,
-  Platform,
-  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
   Modal,
+  Image,
+  ScrollView,
   ActivityIndicator,
   Alert,
-} from "react-native";
-import { BluetoothIcon } from "../../components/svg/BluetoothIcon";
-import { ScanIcon } from "../../components/svg/ScanIcon";
-import { requestPermissions } from "../../components/utils/permission";
+  StatusBar,
+  SafeAreaView,
+} from 'react-native';
+import { WebView } from 'react-native-webview';
 
-// Only import types for BLE
-import type { BleManager, Device, BleError } from "react-native-ble-plx";
-
-// Initialize BLE manager safely
-let manager: BleManager | null = null;
-if (Platform.OS !== "web") {
-  try {
-    const { BleManager: BleManagerClass } = require("react-native-ble-plx");
-    manager = new BleManagerClass();
-  } catch (e) {
-    console.log("BLE not available in Expo Go:", e);
-  }
+interface Device {
+  id: string;
+  name: string;
+  type: string;
+  status: 'online' | 'offline';
+  streamUrl: string;
+  snapshotUrl?: string;
+  location?: string;
 }
 
 export default function Devices() {
-  const [foundDevices, setFoundDevices] = useState<Device[]>([]);
-  const [scanning, setScanning] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [connectingDevice, setConnectingDevice] = useState<string | null>(null);
+  const [devices, setDevices] = useState<Device[]>([
+    {
+      id: '1',
+      name: 'Raspberry Pi Camera',
+      type: 'Camera',
+      status: 'online',
+      streamUrl: 'http://192.168.87.248:5000/stream',
+      snapshotUrl: 'http://192.168.87.248:5000/snapshot.jpg',
+      location: 'Living Room',
+    },
+  ]);
 
-  const steps = [
-    "Turn on your smart helmet by holding the power button for 3 seconds",
-    "Wait for the blue LED indicator to start blinking rapidly.",
-    "Click 'Scan for Devices' and select your helmet from the list.",
-  ];
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'stream' | 'snapshot'>('stream');
+  const webViewRef = useRef<WebView>(null);
 
-  // Automatically prompt Bluetooth on Android
-  const enableBluetooth = async (): Promise<boolean> => {
-    if (!manager || Platform.OS !== "android") return true;
-
-    try {
-      const state = await manager.state();
-      if (state !== "PoweredOn") {
-        return new Promise((resolve) => {
-          Alert.alert(
-            "Bluetooth is Off",
-            "You need to turn on Bluetooth to scan for devices.",
-            [
-              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-              {
-                text: "Turn On",
-                onPress: async () => {
-                  try {
-                    await manager!.enable();
-                    resolve(true);
-                  } catch {
-                    resolve(false);
-                  }
-                },
-              },
-            ],
-            { cancelable: false }
-          );
-        });
-      }
-    } catch (e) {
-      console.log("Error checking Bluetooth state:", e);
-      return false;
+  const handleDeviceSelect = (device: Device) => {
+    if (device.status === 'online') {
+      setSelectedDevice(device);
+      setIsLoading(true);
+      setViewMode('stream');
+    } else {
+      Alert.alert('Device Offline', 'This device is currently offline.');
     }
-
-    return true;
   };
 
-  // Scan for BLE devices
-  const handleScan = async () => {
-    if (!manager) {
-      return Alert.alert("BLE Not Supported", "Bluetooth scanning is not available in Expo Go or Web.");
-    }
-    if (scanning) return;
-
-    const btEnabled = await enableBluetooth();
-    if (!btEnabled) return;
-
-    const granted = await requestPermissions();
-    if (!granted) return;
-
-    setScanning(true);
-    setFoundDevices([]);
-    setModalVisible(true);
-
-    manager.startDeviceScan(null, null, (error: BleError | null, device: Device | null) => {
-      if (error) {
-        console.log("Scan error:", error.message);
-        manager?.stopDeviceScan();
-        setScanning(false);
-        return;
-      }
-
-      if (device && !foundDevices.find((d) => d.id === device.id)) {
-        setFoundDevices((prev) => {
-          if (prev.length >= 7) return prev;
-          return [...prev, device];
-        });
-      }
-    });
-
-    setTimeout(() => {
-      manager?.stopDeviceScan();
-      setScanning(false);
-    }, 10000);
+  const handleCloseStream = () => {
+    setSelectedDevice(null);
+    setIsLoading(false);
   };
 
-  // Connect to a device
-  const handleConnect = async (device: Device) => {
-    if (!manager) return;
-    try {
-      setConnectingDevice(device.id);
-      const connectedDevice = await manager.connectToDevice(device.id);
-      await connectedDevice.discoverAllServicesAndCharacteristics();
-      Alert.alert("Connected", `Successfully connected to ${device.name || device.id}`);
-      setConnectingDevice(null);
-      setModalVisible(false);
-    } catch (error: any) {
-      console.log("Connect error:", error.message);
-      Alert.alert("Connection Failed", `Failed to connect to ${device.name || device.id}`);
-      setConnectingDevice(null);
+  const refreshStream = () => {
+    if (webViewRef.current) {
+      webViewRef.current.reload();
+      setIsLoading(true);
     }
+  };
+
+  const switchToSnapshot = () => {
+    setViewMode('snapshot');
+  };
+
+  const switchToStream = () => {
+    setViewMode('stream');
+    setIsLoading(true);
+  };
+
+  // Generate HTML for WebView to display MJPEG stream
+  const generateStreamHTML = (streamUrl: string) => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+          }
+          img {
+            width: 100%;
+            height: auto;
+            display: block;
+          }
+          .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #10b981;
+            font-family: monospace;
+            font-size: 16px;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="loading" id="loading">Loading stream...</div>
+        <img id="stream" src="${streamUrl}?t=${Date.now()}" alt="Stream" style="display:none;">
+        <script>
+          const img = document.getElementById('stream');
+          const loading = document.getElementById('loading');
+          
+          img.onload = function() {
+            loading.style.display = 'none';
+            img.style.display = 'block';
+            window.ReactNativeWebView.postMessage('loaded');
+          };
+          
+          img.onerror = function() {
+            loading.textContent = 'Reconnecting...';
+            setTimeout(() => {
+              img.src = '${streamUrl}?t=' + Date.now();
+            }, 2000);
+          };
+        </script>
+      </body>
+      </html>
+    `;
   };
 
   return (
-    <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={{ color: "#fff", fontSize: 25, fontWeight: "600", marginBottom: 8 }}>
-        Device Pairing
-      </Text>
-      <Text style={{ color: "#9BB3D6", fontSize: 13, fontWeight: "300", marginBottom: 20 }}>
-        Connect your smart helmet to access all features.
-      </Text>
-
-      {/* How to Pair */}
-      <View style={{ backgroundColor: "#0F2A52", padding: 25, borderRadius: 13, marginBottom: 20 }}>
-        <Text style={{ color: "#fff", fontSize: 17, fontWeight: "600", marginBottom: 15 }}>
-          How to Pair
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#111827" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Devices</Text>
+        <Text style={styles.headerSubtitle}>
+          {devices.filter((d) => d.status === 'online').length} / {devices.length} Online
         </Text>
-        {steps.map((step, index) => (
-          <View key={index} style={{ flexDirection: "row", marginBottom: 12, alignItems: "flex-start" }}>
-            <View
-              style={{
-                backgroundColor: "rgba(6, 182, 212, 0.2)",
-                width: 30,
-                height: 30,
-                borderRadius: 15,
-                justifyContent: "center",
-                alignItems: "center",
-                marginRight: 10,
-              }}
-            >
-              <Text style={{ color: "#22D3EE", fontWeight: "600" }}>{index + 1}</Text>
-            </View>
-            <Text style={{ flex: 1, color: "#9BB3D6" }}>{step}</Text>
-          </View>
-        ))}
       </View>
 
-      {/* Scan Section */}
-      <View style={{ backgroundColor: "#0F2A52", padding: 25, borderRadius: 13, alignItems: "center" }}>
-        <View
-          style={{
-            backgroundColor: "#0A1A3A",
-            width: 70,
-            height: 70,
-            borderRadius: 35,
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: 15,
-          }}
-        >
-          <BluetoothIcon />
-        </View>
-        <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 5 }}>Ready to Pair</Text>
-        <Text
-          style={{
-            color: "#9BB3D6",
-            fontSize: 15,
-            fontWeight: "200",
-            textAlign: "center",
-            marginBottom: 15,
-          }}
-        >
-          Make sure your helmet is turned on and within range.
-        </Text>
-
-        <Pressable onPress={handleScan} disabled={scanning || !manager}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              backgroundColor: "#2EA8FF",
-              paddingHorizontal: 30,
-              paddingVertical: 15,
-              borderRadius: 13,
-              opacity: scanning || !manager ? 0.6 : 1,
-              marginBottom: 15,
-            }}
+      {/* Device List */}
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.deviceList}
+        showsVerticalScrollIndicator={false}
+      >
+        {devices.map((device) => (
+          <TouchableOpacity
+            key={device.id}
+            style={[
+              styles.deviceCard,
+              device.status === 'offline' && styles.deviceCardOffline,
+            ]}
+            onPress={() => handleDeviceSelect(device)}
+            disabled={device.status === 'offline'}
+            activeOpacity={0.7}
           >
-            <ScanIcon />
-            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "bold" }}>
-              {scanning ? "Scanning..." : "Scan for Devices"}
-            </Text>
+            <View style={styles.deviceCardHeader}>
+              <View style={styles.deviceInfo}>
+                <Text style={styles.deviceName}>{device.name}</Text>
+                {device.location && (
+                  <Text style={styles.deviceLocation}>{device.location}</Text>
+                )}
+              </View>
+              <View style={styles.deviceStatus}>
+                <View
+                  style={[
+                    styles.statusDot,
+                    device.status === 'online' ? styles.statusOnline : styles.statusOffline,
+                  ]}
+                />
+                <Text style={styles.deviceType}>{device.type}</Text>
+              </View>
+            </View>
+            <View style={styles.deviceCardFooter}>
+              <Text style={styles.deviceStatusText}>
+                Status: {device.status}
+              </Text>
+              {device.status === 'online' && (
+                <Text style={styles.deviceAction}>Tap to view →</Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        ))}
+        
+        {/* Add Device Button */}
+        <TouchableOpacity
+          style={styles.addDeviceCard}
+          onPress={() => Alert.alert('Add Device', 'Feature coming soon!')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.addDeviceIcon}>+</Text>
+          <Text style={styles.addDeviceText}>Add New Device</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Stream Viewer Modal */}
+      <Modal
+        visible={selectedDevice !== null}
+        animationType="slide"
+        onRequestClose={handleCloseStream}
+        presentationStyle="fullScreen"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderLeft}>
+              <View style={styles.liveDot} />
+              <View style={styles.modalHeaderText}>
+                <Text style={styles.modalTitle}>{selectedDevice?.name}</Text>
+                {selectedDevice?.location && (
+                  <Text style={styles.modalSubtitle}>{selectedDevice.location}</Text>
+                )}
+              </View>
+            </View>
+            <TouchableOpacity onPress={handleCloseStream} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
           </View>
-        </Pressable>
 
-        {!manager && <Text style={{ color: "red", marginTop: 10 }}>BLE not supported in Expo Go / Web</Text>}
-      </View>
+          {/* Controls */}
+          <View style={styles.controls}>
+            <TouchableOpacity
+              style={[styles.controlButton, viewMode === 'stream' && styles.controlButtonActive]}
+              onPress={switchToStream}
+            >
+              <Text style={[
+                styles.controlButtonText,
+                viewMode === 'stream' && styles.controlButtonTextActive
+              ]}>
+                📹 Stream
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.controlButton, viewMode === 'snapshot' && styles.controlButtonActive]}
+              onPress={switchToSnapshot}
+            >
+              <Text style={[
+                styles.controlButtonText,
+                viewMode === 'snapshot' && styles.controlButtonTextActive
+              ]}>
+                📷 Snapshot
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.controlButton} 
+              onPress={refreshStream}
+            >
+              <Text style={styles.controlButtonText}>↻</Text>
+            </TouchableOpacity>
+          </View>
 
-      {/* Modal for scanned devices */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: 20 }}>
-          <View style={{ backgroundColor: "#0F2A52", borderRadius: 13, padding: 20, maxHeight: "80%" }}>
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700", marginBottom: 15 }}>
-              Select a Device
-            </Text>
-            {foundDevices.length === 0 && scanning && <ActivityIndicator size="large" color="#2EA8FF" />}
-            {foundDevices.map((device) => (
-              <Pressable
-                key={device.id}
-                onPress={() => handleConnect(device)}
-                style={{
-                  paddingVertical: 12,
-                  paddingHorizontal: 10,
-                  backgroundColor: "#0A1A3A",
-                  borderRadius: 10,
-                  marginBottom: 10,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
+          {/* Stream View */}
+          <View style={styles.streamContainer}>
+            {isLoading && (
+              <View style={styles.loadingOverlay}>
+                <ActivityIndicator size="large" color="#10b981" />
+                <Text style={styles.loadingText}>Loading stream...</Text>
+              </View>
+            )}
+
+            {viewMode === 'stream' && selectedDevice ? (
+              <WebView
+                ref={webViewRef}
+                source={{ html: generateStreamHTML(selectedDevice.streamUrl) }}
+                style={styles.webView}
+                onLoadStart={() => setIsLoading(true)}
+                onLoadEnd={() => setIsLoading(false)}
+                onMessage={(event) => {
+                  if (event.nativeEvent.data === 'loaded') {
+                    setIsLoading(false);
+                  }
                 }}
-              >
-                <Text style={{ color: "#22D3EE", fontSize: 16 }}>{device.name || "Unknown Device"}</Text>
-                {connectingDevice === device.id && <ActivityIndicator color="#22D3EE" />}
-              </Pressable>
-            ))}
-
-            <Pressable onPress={() => setModalVisible(false)} style={{ marginTop: 10 }}>
-              <Text style={{ color: "#fff", textAlign: "center", fontSize: 16 }}>Cancel</Text>
-            </Pressable>
+                onError={(syntheticEvent) => {
+                  const { nativeEvent } = syntheticEvent;
+                  console.error('WebView error: ', nativeEvent);
+                  setIsLoading(false);
+                  Alert.alert('Stream Error', 'Failed to load stream. Please check your connection.');
+                }}
+                mediaPlaybackRequiresUserAction={false}
+                allowsInlineMediaPlayback={true}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                originWhitelist={['*']}
+                mixedContentMode="always"
+              />
+            ) : (
+              selectedDevice?.snapshotUrl && (
+                <ScrollView
+                  style={styles.snapshotScroll}
+                  contentContainerStyle={styles.snapshotScrollContent}
+                  maximumZoomScale={3}
+                  minimumZoomScale={1}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Image
+                    source={{ uri: `${selectedDevice.snapshotUrl}?t=${Date.now()}` }}
+                    style={styles.snapshotImage}
+                    resizeMode="contain"
+                    onLoadStart={() => setIsLoading(true)}
+                    onLoadEnd={() => setIsLoading(false)}
+                    onError={() => {
+                      setIsLoading(false);
+                      Alert.alert('Error', 'Failed to load snapshot');
+                    }}
+                  />
+                </ScrollView>
+              )
+            )}
           </View>
-        </View>
+
+          {/* Footer */}
+          <View style={styles.modalFooter}>
+            <Text style={styles.footerText}>640x480 @ 20fps</Text>
+            <Text style={styles.footerText}>Quality: 40</Text>
+            <View style={styles.liveIndicatorContainer}>
+              <View style={styles.liveIndicatorDot} />
+              <Text style={styles.liveIndicator}>LIVE</Text>
+            </View>
+          </View>
+        </SafeAreaView>
       </Modal>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#111827',
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#1f2937',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  deviceList: {
+    padding: 20,
+  },
+  deviceCard: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  deviceCardOffline: {
+    opacity: 0.5,
+  },
+  deviceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  deviceInfo: {
+    flex: 1,
+  },
+  deviceName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  deviceLocation: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  deviceStatus: {
+    alignItems: 'flex-end',
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  statusOnline: {
+    backgroundColor: '#10b981',
+  },
+  statusOffline: {
+    backgroundColor: '#ef4444',
+  },
+  deviceType: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  deviceCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+  },
+  deviceStatusText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  deviceAction: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  addDeviceCard: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 30,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#374151',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addDeviceIcon: {
+    fontSize: 32,
+    color: '#10b981',
+    marginBottom: 8,
+  },
+  addDeviceText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#1f2937',
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  modalHeaderText: {
+    marginLeft: 12,
+  },
+  liveDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10b981',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  closeButtonText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  controls: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#1f2937',
+    gap: 8,
+  },
+  controlButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlButtonActive: {
+    backgroundColor: '#10b981',
+  },
+  controlButtonText: {
+    color: '#9ca3af',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  controlButtonTextActive: {
+    color: '#fff',
+  },
+  streamContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  snapshotScroll: {
+    flex: 1,
+  },
+  snapshotScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  snapshotImage: {
+    width: '100%',
+    height: '100%',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  loadingText: {
+    color: '#10b981',
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#1f2937',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  liveIndicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveIndicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10b981',
+    marginRight: 6,
+  },
+  liveIndicator: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '700',
+  },
+});

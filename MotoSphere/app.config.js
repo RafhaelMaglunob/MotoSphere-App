@@ -16,6 +16,7 @@ export default ({ config }) => ({
     supportsTablet: true,
     bundleIdentifier: "com.motospheres.app",
     infoPlist: {
+      NSBluetoothPeripheralUsageDescription: "This app uses Bluetooth to connect to Raspberry Pi devices.",
       NSBluetoothAlwaysUsageDescription: "This app uses Bluetooth to connect to devices.",
       NSCameraUsageDescription: "This app needs camera access for scanning QR codes.",
       NSLocationWhenInUseUsageDescription: "Location is used to track your rides.",
@@ -36,11 +37,12 @@ export default ({ config }) => ({
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: "com.motospheres.app",
-    googleServicesFile: "./google-services.json", // ✅ Correct
+    googleServicesFile: "./google-services.json",
     permissions: [
-      "android.permission.BLUETOOTH",
-      "android.permission.BLUETOOTH_ADMIN",
+      // Bluetooth permissions (Android 12+)
+      "android.permission.BLUETOOTH_SCAN",
       "android.permission.BLUETOOTH_CONNECT",
+      // Location permissions (required for BLE scanning on Android 6+)
       "android.permission.ACCESS_FINE_LOCATION",
       "android.permission.ACCESS_COARSE_LOCATION",
     ],
@@ -73,8 +75,8 @@ export default ({ config }) => ({
     ],
     "react-native-ble-plx",
     "@react-native-google-signin/google-signin",
-    "@react-native-firebase/app",           // ⬅️ Add this
-    "@react-native-firebase/auth",     
+    "@react-native-firebase/app",
+    "@react-native-firebase/auth",
   ],
 
   experiments: {
@@ -85,7 +87,7 @@ export default ({ config }) => ({
   extra: {
     // Google
     GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
-    WEB_CLIENT_ID: process.env.WEB_CLIENT_ID, // ✅ This is what Android uses
+    WEB_CLIENT_ID: process.env.WEB_CLIENT_ID,
     IOS_CLIENT_ID: process.env.IOS_CLIENT_ID,
 
     // Firebase
@@ -97,7 +99,7 @@ export default ({ config }) => ({
     FIREBASE_APP_ID: process.env.FIREBASE_APP_ID,
     FIREBASE_MEASUREMENT_ID: process.env.FIREBASE_MEASUREMENT_ID,
 
-
+    // EmailJS
     EMAILJS_SERVICE_ID: process.env.EMAILJS_SERVICE_ID,
     EMAILJS_VERIFICATION_TEMPLATE: process.env.EMAILJS_VERIFICATION_TEMPLATE,
     EMAILJS_NOTIFICATION_TEMPLATE: process.env.EMAILJS_NOTIFICATION_TEMPLATE,
