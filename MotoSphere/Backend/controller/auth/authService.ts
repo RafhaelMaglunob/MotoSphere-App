@@ -1,4 +1,3 @@
-// Backend/controller/auth/authService.ts
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -14,8 +13,6 @@ import { deleteUserData } from '../../secureStore';
 import { clearUserCache } from '../../authController';
 
 export type UserRole = 'rider' | 'emergency contact';
-
-const VERCEL_EMAIL_API = 'https://email-backend-five-phi.vercel.app/api/send-email';
 
 /**
  * Check if email already exists in Firebase
@@ -42,8 +39,128 @@ export const checkEmailExists = async (email: string): Promise<boolean> => {
 };
 
 /**
- * Send verification email to new user (similar to sendVerificationEmail but for registration)
- * ⭐ Used during registration to auto-send verification
+ * ⭐ Send verification email BEFORE account creation (registration flow)
+ */
+export const sendPreRegistrationVerificationEmail = async (
+  email: string,
+  userName: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('📧 Sending pre-registration verification email to:', email);
+
+    const db = getDb();
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store code in Firestore with expiration
+    await addDoc(collection(db, 'preRegistrationVerifications'), {
+      email: normalizedEmail,
+      code: code,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      used: false,
+      verified: false
+    });
+
+    console.log('✅ Pre-registration verification code stored');
+
+    // ⭐ SAME VERCEL CALL AS settingService
+    console.log('🚀 Calling Vercel API...');
+    console.log('📧 Target email:', normalizedEmail);
+    console.log('🔢 Code:', code);
+
+    const response = await fetch('https://email-backend-five-phi.vercel.app/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: normalizedEmail,
+        code: code,
+        userName: userName,
+        emailType: 'preRegistration'
+      })
+    });
+
+    console.log('📬 Response status:', response.status);
+    const responseText = await response.text();
+    console.log('📬 Response body:', responseText);
+
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ Could not parse response as JSON:', responseText);
+      throw new Error('Invalid response from server');
+    }
+
+    if (!response.ok) {
+      console.error('❌ API returned error:', result);
+      throw new Error(result.error || result.details || `HTTP ${response.status}`);
+    }
+
+    console.log('✅ Pre-registration verification email sent successfully');
+    return { success: true };
+
+  } catch (error: any) {
+    console.error('❌ Failed to send pre-registration verification email:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to send verification email'
+    };
+  }
+};
+
+/**
+ * ⭐ Verify the pre-registration code before creating account
+ */
+export const verifyPreRegistrationCode = async (
+  email: string,
+  inputCode: string
+): Promise<boolean> => {
+  try {
+    console.log('🔐 Verifying pre-registration code for email:', email);
+
+    const db = getDb();
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    const q = query(
+      collection(db, 'preRegistrationVerifications'),
+      where('email', '==', normalizedEmail),
+      where('code', '==', inputCode.trim()),
+      where('used', '==', false)
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      console.error('❌ Invalid pre-registration code');
+      return false;
+    }
+
+    const codeDoc = snapshot.docs[0];
+    const data = codeDoc.data();
+
+    const expiresAt = data.expiresAt?.toDate?.();
+    if (expiresAt && expiresAt < new Date()) {
+      console.error('❌ Pre-registration code expired');
+      await setDoc(codeDoc.ref, { used: true }, { merge: true });
+      return false;
+    }
+
+    // Mark as verified
+    await setDoc(codeDoc.ref, { verified: true, used: true }, { merge: true });
+    console.log('✅ Pre-registration code verified');
+
+    return true;
+  } catch (error: any) {
+    console.error('❌ Error verifying pre-registration code:', error);
+    throw new Error('Failed to verify email code');
+  }
+};
+
+/**
+ * Send verification email to new user during registration
  */
 export const sendVerificationEmailToNewUser = async (
   email: string,
@@ -54,6 +171,7 @@ export const sendVerificationEmailToNewUser = async (
     console.log('📧 Sending verification email to new user:', email);
 
     const db = getDb();
+    const normalizedEmail = email.toLowerCase().trim();
     
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -61,27 +179,25 @@ export const sendVerificationEmailToNewUser = async (
     // Store code in Firestore with expiration
     await addDoc(collection(db, 'verificationCodes'), {
       uid: uid,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       code: code,
       createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       used: false
     });
 
     console.log('✅ Verification code stored in Firestore');
 
-    // Call Vercel API to send email
-    console.log('🚀 Calling Vercel API to send verification email...');
-    console.log('📧 Target email:', email.toLowerCase());
+    // ⭐ SAME VERCEL CALL AS settingService
+    console.log('🚀 Calling Vercel API...');
+    console.log('📧 Target email:', normalizedEmail);
     console.log('🔢 Code:', code);
 
-    const response = await fetch(VERCEL_EMAIL_API, {
+    const response = await fetch('https://email-backend-five-phi.vercel.app/api/send-email', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         code: code,
         userName: userName,
         emailType: 'verification'
@@ -92,7 +208,6 @@ export const sendVerificationEmailToNewUser = async (
     const responseText = await response.text();
     console.log('📬 Response body:', responseText);
 
-    // Try to parse as JSON
     let result;
     try {
       result = JSON.parse(responseText);
@@ -107,7 +222,6 @@ export const sendVerificationEmailToNewUser = async (
     }
 
     console.log('✅ Verification email sent successfully to new user');
-
     return { success: true };
 
   } catch (error: any) {
@@ -121,8 +235,6 @@ export const sendVerificationEmailToNewUser = async (
 
 /**
  * Check for pending verification codes that haven't expired
- * ⭐ Used to auto-show verification modal if code exists
- * ✅ FIXED: Proper type handling for email property
  */
 export const getPendingVerificationCode = async (uid: string): Promise<{
   hasPendingCode: boolean;
@@ -147,7 +259,6 @@ export const getPendingVerificationCode = async (uid: string): Promise<{
       return { hasPendingCode: false };
     }
 
-    // ✅ FIXED: Explicitly map all fields to ensure types are correct
     const validCodes = snapshot.docs
       .map(doc => {
         const data = doc.data();
@@ -190,7 +301,7 @@ export const getPendingVerificationCode = async (uid: string): Promise<{
 };
 
 /**
- * Send 2FA code via Vercel Email Handler
+ * Send 2FA code via Vercel
  */
 export const send2FACode = async (email: string, uid: string, userName?: string): Promise<void> => {
   try {
@@ -199,7 +310,7 @@ export const send2FACode = async (email: string, uid: string, userName?: string)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const db = getDb();
     
-    addDoc(collection(db, '2fa_codes'), {
+    await addDoc(collection(db, '2fa_codes'), {
       uid,
       email,
       code,
@@ -210,43 +321,41 @@ export const send2FACode = async (email: string, uid: string, userName?: string)
 
     console.log('✅ 2FA code stored in Firestore');
 
+    // ⭐ SAME VERCEL CALL AS settingService
+    console.log('🚀 Calling Vercel API...');
+    console.log('📧 Target email:', email);
+    console.log('🔢 Code:', code);
+
+    const response = await fetch('https://email-backend-five-phi.vercel.app/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        code: code,
+        userName: userName || 'User',
+        emailType: '2fa'
+      })
+    });
+
+    console.log('📬 Response status:', response.status);
+    const responseText = await response.text();
+    console.log('📬 Response body:', responseText);
+
+    let result;
     try {
-      console.log('📤 Calling Vercel API:', VERCEL_EMAIL_API);
-      
-      const response = await fetch(VERCEL_EMAIL_API, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email,
-          code: code,
-          userName: userName || 'User',
-          emailType: '2fa'
-        })
-      });
-
-      console.log('📬 Response Status:', response.status);
-      const responseText = await response.text();
-
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('❌ Response is not valid JSON');
-        throw new Error('Email service returned invalid response');
-      }
-
-      if (!response.ok) {
-        console.error('⚠️ Failed to send 2FA email:', result.error);
-        throw new Error(result.error || 'Failed to send 2FA email');
-      }
-
-      console.log('✅ 2FA code sent via email successfully');
-    } catch (emailError: any) {
-      console.error('⚠️ Email sending error:', emailError.message);
-      throw new Error(`Failed to send 2FA code: ${emailError.message}`);
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ Response is not valid JSON');
+      throw new Error('Email service returned invalid response');
     }
+
+    if (!response.ok) {
+      console.error('⚠️ Failed to send 2FA email:', result.error);
+      throw new Error(result.error || 'Failed to send 2FA email');
+    }
+
+    console.log('✅ 2FA code sent via email successfully');
+
   } catch (error: any) {
     console.error('❌ Error in send2FACode:', error);
     throw new Error(error.message || 'Failed to send 2FA code');
@@ -302,11 +411,10 @@ export const sendWelcomeEmail = async (email: string, userName: string): Promise
   try {
     console.log('📧 Sending welcome email to:', email);
 
-    const response = await fetch(VERCEL_EMAIL_API, {
+    // ⭐ SAME VERCEL CALL AS settingService
+    const response = await fetch('https://email-backend-five-phi.vercel.app/api/send-email', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email,
         userName: userName,
@@ -339,8 +447,7 @@ export const sendWelcomeEmail = async (email: string, userName: string): Promise
 };
 
 /**
- * Regular email/password registration with automatic verification email
- * ⭐ NEW: Automatically sends verification email to new user
+ * ⭐ Register user only AFTER email verification
  */
 export const registerUser = async (
   name: string,
@@ -359,14 +466,15 @@ export const registerUser = async (
     const user = userCredential.user;
 
     const db = getDb();
+    const normalizedEmail = email.toLowerCase().trim();
 
     await setDoc(doc(db, 'users', user.uid), {
       name,
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       contactNo,
       role,
       deviceId: 'None',
-      emailVerified: false,
+      emailVerified: true,
       createdAt: new Date().toISOString(),
       provider: 'email'
     });
@@ -374,31 +482,25 @@ export const registerUser = async (
     saveToken(user.uid);
     console.log('✅ User registered:', user.uid);
 
-    // ⭐ AUTOMATICALLY SEND VERIFICATION EMAIL
-    let verificationEmailSent = false;
     try {
-      console.log('📧 Auto-sending verification email to new user...');
-      const emailResult = await sendVerificationEmailToNewUser(
-        email.toLowerCase(),
-        user.uid,
-        name
+      const q = query(
+        collection(db, 'preRegistrationVerifications'),
+        where('email', '==', normalizedEmail),
+        where('verified', '==', true)
       );
+      const snapshot = await getDocs(q);
       
-      if (emailResult.success) {
-        verificationEmailSent = true;
-        console.log('✅ Verification email sent successfully');
-      } else {
-        console.error('⚠️ Failed to send verification email:', emailResult.error);
-        // Don't fail registration if email fails - user is still created
+      if (!snapshot.empty) {
+        await setDoc(snapshot.docs[0].ref, { cleaned: true }, { merge: true });
+        console.log('✅ Cleaned up pre-registration record');
       }
-    } catch (emailError: any) {
-      console.error('⚠️ Error sending verification email (non-blocking):', emailError.message);
-      // Don't throw - registration should succeed even if email fails
+    } catch (cleanupError) {
+      console.warn('⚠️ Could not cleanup pre-registration record:', cleanupError);
     }
 
     return { 
       uid: user.uid,
-      verificationEmailSent
+      verificationEmailSent: true
     };
   } catch (error: any) {
     console.error('❌ Register error:', error.code);
@@ -429,8 +531,6 @@ export const loginUser = async (
     if (userDoc.exists() && userDoc.data()?.emailVerified) {
       console.log('📧 Email verified - sending 2FA code');
       
-      // ⭐ IMPROVEMENT: Use email from Firestore (user's actual current email)
-      // This ensures 2FA goes to the right place even if they changed their email
       const firestoreEmail = userDoc.data()?.email || email;
       const userName_data = userName || userDoc.data()?.name;
       
@@ -472,10 +572,9 @@ export const completeTwoFactorLogin = async (uid: string, code: string): Promise
     throw new Error(error.message || 'Failed to complete 2FA login');
   }
 };
+
 /**
  * Google Sign-In with email matching
- * ⭐ If email exists, return that account's UID (don't update anything)
- * If email doesn't exist, create new account with Google UID
  */
 export const loginWithGoogle = async (idToken: string): Promise<{ uid: string; isNewUser: boolean }> => {
   try {
@@ -495,7 +594,6 @@ export const loginWithGoogle = async (idToken: string): Promise<{ uid: string; i
     const db = getDb();
     const normalizedEmail = googleUser.email?.toLowerCase() || '';
 
-    // ⭐ Step 1: Check if this email already exists in database
     console.log('🔍 Checking if email exists in Firestore:', normalizedEmail);
     
     let existingUid: string | null = null;
@@ -511,20 +609,17 @@ export const loginWithGoogle = async (idToken: string): Promise<{ uid: string; i
         existingUid = emailSnapshot.docs[0].id;
         console.log('✅ Found existing account with this email, UID:', existingUid);
         
-        // ⭐ Return existing account's UID - user will login as that account
         await saveToken(existingUid);
         
         return {
-          uid: existingUid,  // ← Use existing account's UID
+          uid: existingUid,
           isNewUser: false
         };
       }
     } catch (queryError: any) {
       console.warn('⚠️ Could not query existing emails:', queryError.message);
-      // Continue to create new account
     }
 
-    // ⭐ Step 2: No existing email found - create new account with Google UID
     console.log('✅ Email not found, creating new account with Google UID');
 
     const userDocRef = doc(db, 'users', googleUser.uid);
@@ -553,7 +648,6 @@ export const loginWithGoogle = async (idToken: string): Promise<{ uid: string; i
     } catch (docError: any) {
       console.error('⚠️ Error creating user document:', docError.message);
       
-      // Even if document fails, return UID (user authenticated in Firebase Auth)
       await saveToken(googleUser.uid);
       
       return {

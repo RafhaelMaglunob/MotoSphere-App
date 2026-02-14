@@ -11,6 +11,7 @@ import {
   Alert,
   StatusBar,
   SafeAreaView,
+  TextInput,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -31,20 +32,33 @@ export default function Devices() {
       name: 'Raspberry Pi Camera',
       type: 'Camera',
       status: 'online',
-      streamUrl: 'http://192.168.87.248:5000/stream',
-      snapshotUrl: 'http://192.168.87.248:5000/snapshot.jpg',
+      // ⭐ You can use .local domain here!
+      streamUrl: 'http://raspberrypi.local:5000/stream',
+      snapshotUrl: 'http://raspberrypi.local:5000/snapshot.jpg',
       location: 'Living Room',
     },
+    // Example with IP address (for comparison)
+    // {
+    //   id: '2',
+    //   name: 'Pi Camera 2',
+    //   type: 'Camera',
+    //   status: 'online',
+    //   streamUrl: 'http://192.168.1.100:5000/stream',
+    //   snapshotUrl: 'http://192.168.1.100:5000/snapshot.jpg',
+    //   location: 'Bedroom',
+    // },
   ]);
 
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'stream' | 'snapshot'>('stream');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
 
   const handleDeviceSelect = (device: Device) => {
     if (device.status === 'online') {
       setSelectedDevice(device);
+      setConnectionError(null);
       setIsLoading(true);
       setViewMode('stream');
     } else {
@@ -55,22 +69,69 @@ export default function Devices() {
   const handleCloseStream = () => {
     setSelectedDevice(null);
     setIsLoading(false);
+    setConnectionError(null);
   };
 
   const refreshStream = () => {
     if (webViewRef.current) {
       webViewRef.current.reload();
       setIsLoading(true);
+      setConnectionError(null);
     }
   };
 
   const switchToSnapshot = () => {
     setViewMode('snapshot');
+    setConnectionError(null);
   };
 
   const switchToStream = () => {
     setViewMode('stream');
     setIsLoading(true);
+    setConnectionError(null);
+  };
+
+  // ⭐ Test connection to device
+  const testConnection = async (device: Device) => {
+    try {
+      setIsLoading(true);
+      
+      // Create AbortController for timeout (React Native doesn't support fetch timeout)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(device.snapshotUrl || device.streamUrl, {
+        method: 'HEAD',
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok || response.status === 200) {
+        Alert.alert('✅ Connection Success', `Successfully connected to ${device.name}`);
+        // Update device status if it was offline
+        if (device.status === 'offline') {
+          const updatedDevices = devices.map(d =>
+            d.id === device.id ? { ...d, status: 'online' as const } : d
+          );
+          setDevices(updatedDevices);
+        }
+      }
+    } catch (error: any) {
+      let errorMessage = error.message;
+      
+      // Handle specific error types
+      if (error.name === 'AbortError') {
+        errorMessage = 'Connection timeout (5 seconds)';
+      }
+      
+      Alert.alert(
+        '❌ Connection Failed',
+        `Could not reach ${device.name}.\n\nError: ${errorMessage}\n\nMake sure:\n1. Device is powered on\n2. Device is on same WiFi network\n3. Hostname is correct (${device.streamUrl})`
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Generate HTML for WebView to display MJPEG stream
@@ -105,6 +166,17 @@ export default function Devices() {
             font-size: 16px;
             text-align: center;
           }
+          .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ef4444;
+            font-family: monospace;
+            font-size: 14px;
+            text-align: center;
+            max-width: 80%;
+          }
         </style>
       </head>
       <body>
@@ -113,18 +185,31 @@ export default function Devices() {
         <script>
           const img = document.getElementById('stream');
           const loading = document.getElementById('loading');
+          let retryCount = 0;
+          const maxRetries = 3;
           
           img.onload = function() {
             loading.style.display = 'none';
             img.style.display = 'block';
+            retryCount = 0;
             window.ReactNativeWebView.postMessage('loaded');
           };
           
           img.onerror = function() {
-            loading.textContent = 'Reconnecting...';
-            setTimeout(() => {
-              img.src = '${streamUrl}?t=' + Date.now();
-            }, 2000);
+            retryCount++;
+            if (retryCount < maxRetries) {
+              loading.textContent = 'Reconnecting... (' + retryCount + '/' + maxRetries + ')';
+              setTimeout(() => {
+                img.src = '${streamUrl}?t=' + Date.now();
+              }, 2000);
+            } else {
+              loading.style.display = 'none';
+              const error = document.createElement('div');
+              error.className = 'error';
+              error.textContent = 'Failed to load stream.\\nCheck if device is online.';
+              document.body.appendChild(error);
+              window.ReactNativeWebView.postMessage('error');
+            }
           };
         </script>
       </body>
@@ -158,6 +243,8 @@ export default function Devices() {
               device.status === 'offline' && styles.deviceCardOffline,
             ]}
             onPress={() => handleDeviceSelect(device)}
+            onLongPress={() => testConnection(device)}
+            delayLongPress={500}
             disabled={device.status === 'offline'}
             activeOpacity={0.7}
           >
@@ -167,6 +254,7 @@ export default function Devices() {
                 {device.location && (
                   <Text style={styles.deviceLocation}>{device.location}</Text>
                 )}
+                <Text style={styles.deviceUrl}>{device.streamUrl}</Text>
               </View>
               <View style={styles.deviceStatus}>
                 <View
@@ -185,6 +273,7 @@ export default function Devices() {
               {device.status === 'online' && (
                 <Text style={styles.deviceAction}>Tap to view →</Text>
               )}
+              <Text style={styles.deviceHint}>Long press to test</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -260,6 +349,13 @@ export default function Devices() {
             </TouchableOpacity>
           </View>
 
+          {/* Connection Error Alert */}
+          {connectionError && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>⚠️ {connectionError}</Text>
+            </View>
+          )}
+
           {/* Stream View */}
           <View style={styles.streamContainer}>
             {isLoading && (
@@ -279,13 +375,16 @@ export default function Devices() {
                 onMessage={(event) => {
                   if (event.nativeEvent.data === 'loaded') {
                     setIsLoading(false);
+                  } else if (event.nativeEvent.data === 'error') {
+                    setIsLoading(false);
+                    setConnectionError('Unable to connect to device. Check hostname and network.');
                   }
                 }}
                 onError={(syntheticEvent) => {
                   const { nativeEvent } = syntheticEvent;
                   console.error('WebView error: ', nativeEvent);
                   setIsLoading(false);
-                  Alert.alert('Stream Error', 'Failed to load stream. Please check your connection.');
+                  setConnectionError('Stream connection failed. Try refreshing.');
                 }}
                 mediaPlaybackRequiresUserAction={false}
                 allowsInlineMediaPlayback={true}
@@ -311,7 +410,7 @@ export default function Devices() {
                     onLoadEnd={() => setIsLoading(false)}
                     onError={() => {
                       setIsLoading(false);
-                      Alert.alert('Error', 'Failed to load snapshot');
+                      setConnectionError('Failed to load snapshot');
                     }}
                   />
                 </ScrollView>
@@ -389,6 +488,12 @@ const styles = StyleSheet.create({
   deviceLocation: {
     fontSize: 14,
     color: '#9ca3af',
+    marginBottom: 4,
+  },
+  deviceUrl: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontFamily: 'monospace',
   },
   deviceStatus: {
     alignItems: 'flex-end',
@@ -410,9 +515,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   deviceCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#374151',
@@ -420,11 +522,18 @@ const styles = StyleSheet.create({
   deviceStatusText: {
     fontSize: 12,
     color: '#6b7280',
+    marginBottom: 4,
   },
   deviceAction: {
     fontSize: 12,
     color: '#10b981',
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  deviceHint: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
   addDeviceCard: {
     backgroundColor: '#1f2937',
@@ -523,6 +632,18 @@ const styles = StyleSheet.create({
   },
   controlButtonTextActive: {
     color: '#fff',
+  },
+  errorBanner: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ef4444',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  errorBannerText: {
+    color: '#fca5a5',
+    fontSize: 13,
+    fontWeight: '500',
   },
   streamContainer: {
     flex: 1,

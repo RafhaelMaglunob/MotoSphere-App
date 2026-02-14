@@ -18,8 +18,8 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import Constants from 'expo-constants';
 import { useExitConfirmation } from '../components/navigation/BackButtonHandler';
 
-import { 
-  loginUser, 
+import {
+  loginUser,
   loginWithGoogle,
   completeTwoFactorLogin,
 } from '../Backend/controller/auth/authService';
@@ -44,7 +44,7 @@ try {
 
 export default function Login() {
   useExitConfirmation();
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -89,7 +89,7 @@ export default function Login() {
 
     try {
       const { uid, requiresTwoFA } = await loginUser(email, password);
-      
+
       if (requiresTwoFA) {
         setPendingUID(uid);
         setTwoFACode('');
@@ -149,7 +149,7 @@ export default function Login() {
   // =========================
   const handleGoogleSignIn = async () => {
     setError('');
-    
+
     if (!extra?.WEB_CLIENT_ID) {
       setError('Google Sign-In is not configured. Please check your app configuration.');
       return;
@@ -160,17 +160,17 @@ export default function Login() {
 
     try {
       console.log('🔵 Starting Google Sign-In...');
-      
+
       // Sign out from any previous session (non-blocking)
       try {
         await GoogleSignin.signOut();
       } catch (e) {
         console.log('ℹ️ No previous session');
       }
-      
+
       // Check play services
       await GoogleSignin.hasPlayServices();
-      
+
       // Sign in
       console.log('📱 Initiating Google sign-in...');
       const response = await GoogleSignin.signIn();
@@ -182,7 +182,7 @@ export default function Login() {
       }
 
       const idToken = response.data.idToken;
-      
+
       if (!idToken) {
         console.error('❌ No ID token in response');
         setError('Failed to get authentication token');
@@ -199,7 +199,7 @@ export default function Login() {
     } catch (err: any) {
       console.error('❌ Google Sign-In Error:', err);
       setLoading(false);
-      
+
       if (err.code === statusCodes.SIGN_IN_CANCELLED) {
         console.log('ℹ️ Sign-in was cancelled by user');
         // Don't show error if user cancelled
@@ -217,9 +217,9 @@ export default function Login() {
   const completeGoogleSignInDirect = async (idToken: string) => {
     try {
       console.log('🔵 Completing Google Sign-In...');
-      
+
       const { uid, isNewUser } = await loginWithGoogle(idToken);
-      
+
       console.log('✅ Google login successful, UID:', uid);
       console.log('📊 Is new user:', isNewUser);
 
@@ -245,7 +245,7 @@ export default function Login() {
   const handleTermsAccept = async () => {
     setShowTerms(false);
     setLoading(true);
-    
+
     try {
       if (!pendingGoogleAuth) {
         throw new Error('No pending auth token');
@@ -267,7 +267,7 @@ export default function Login() {
     setPendingGoogleAuth(null);
     setGoogleIsNewUser(false);
     setError('You must accept the terms to continue');
-    
+
     try {
       await GoogleSignin.signOut();
       console.log('✅ Signed out after declining terms');
@@ -356,7 +356,10 @@ export default function Login() {
             />
             <Text style={{ color: '#94A3B8' }}>Show Password</Text>
           </View>
-          <Pressable disabled={loading}>
+          <Pressable
+            onPress={() => router.push('/ForgotPassword')}
+            disabled={loading}
+          >
             <Text style={{ color: '#22D3EE' }}>Forgot Password?</Text>
           </Pressable>
         </View>
@@ -375,9 +378,9 @@ export default function Login() {
         </View>
 
         {/* Google Button */}
-        <Pressable 
-          onPress={handleGoogleSignIn} 
-          disabled={loading} 
+        <Pressable
+          onPress={handleGoogleSignIn}
+          disabled={loading}
           style={[styles.googleButton, loading && { opacity: 0.6 }]}
         >
           {loading ? (
@@ -472,18 +475,18 @@ export default function Login() {
             <ScrollView style={styles.termsScroll}>
               <Text style={styles.termsText}>
                 <Text style={styles.termsSectionTitle}>Terms of Service{'\n\n'}</Text>
-                By using MotoSphere, you agree to our terms of service. We collect and process 
+                By using MotoSphere, you agree to our terms of service. We collect and process
                 your data to provide ride tracking, emergency contact features, and improve our services.
                 {'\n\n'}
                 <Text style={styles.termsSectionTitle}>Privacy Policy{'\n\n'}</Text>
-                Your privacy is important to us. We use your data only for the purposes of providing 
+                Your privacy is important to us. We use your data only for the purposes of providing
                 our services and will never share your personal information without your consent.
                 {'\n\n'}
                 <Text style={styles.termsSectionTitle}>Data Collection{'\n\n'}</Text>
-                We collect location data, ride logs, and emergency contact information to ensure your 
+                We collect location data, ride logs, and emergency contact information to ensure your
                 safety while riding. This data is encrypted and securely stored.
                 {'\n\n'}
-                By clicking "Accept & Continue", you acknowledge that you have read and agree to our 
+                By clicking "Accept & Continue", you acknowledge that you have read and agree to our
                 Terms of Service and Privacy Policy.
               </Text>
             </ScrollView>
@@ -491,8 +494,8 @@ export default function Login() {
               <Pressable onPress={handleTermsDecline} style={styles.declineButton}>
                 <Text style={styles.declineButtonText}>Decline</Text>
               </Pressable>
-              <Pressable 
-                onPress={handleTermsAccept} 
+              <Pressable
+                onPress={handleTermsAccept}
                 disabled={loading}
                 style={[styles.acceptButton, loading && { opacity: 0.6 }]}
               >

@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Image, Text, TextInput, View, Pressable, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { registerUser } from '../Backend/controller/auth/authService';
 import { useExitConfirmation } from '../components/navigation/BackButtonHandler';
+import VerifyEmailCodeModal from '../components/modals/VerifyEmailCodeModal';
 
 export default function Register() {
     useExitConfirmation();
@@ -20,6 +21,19 @@ export default function Register() {
     const [loading, setLoading] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
+
+    // ⭐ NEW: Email verification states
+    const [showEmailVerification, setShowEmailVerification] = useState(false);
+    const [emailVerificationLoading, setEmailVerificationLoading] = useState(false);
+
+    // ⭐ NEW: Store registration data for later use after verification
+    const [pendingRegistration, setPendingRegistration] = useState({
+        name: '',
+        email: '',
+        password: '',
+        contact: '',
+        role: 'rider'
+    });
 
     const [error, setError] = useState({ fullName: '', email: '', contact: '', password: '', confirmPassword: '' });
     const allowedDomains = ['gmail.com', 'yahoo.com', 'outlook.com'];
@@ -61,33 +75,29 @@ export default function Register() {
 
     // Contact validation and formatting with fixed +63 prefix
     const formatContact = (value: string) => {
-        // Remove all non-digits
         let digits = value.replace(/\D/g, '');
 
-        // If starts with 63, keep it; if starts with 09, convert to 63; otherwise take as-is
         if (digits.startsWith('63')) {
-            digits = digits.slice(2); // Remove 63 prefix to process
+            digits = digits.slice(2);
         } else if (digits.startsWith('09')) {
-            digits = digits.slice(2); // Remove 09 prefix
+            digits = digits.slice(2);
         } else if (digits.startsWith('9')) {
             // Already without 0 or 63
         } else {
-            digits = digits.slice(-10); // Take last 10 digits
+            digits = digits.slice(-10);
         }
 
-        // Limit to 10 digits (9 + 9 more digits)
         const limitedDigits = digits.slice(0, 10);
 
-        // Format as +63 9XX XXX XXXX
         let formatted = '+63 ';
         if (limitedDigits.length > 0) {
-            formatted += limitedDigits.slice(0, 1); // First digit (should be 9)
+            formatted += limitedDigits.slice(0, 1);
             if (limitedDigits.length > 1) {
-                formatted += limitedDigits.slice(1, 4); // Next 3 digits
+                formatted += limitedDigits.slice(1, 4);
                 if (limitedDigits.length > 4) {
-                    formatted += ' ' + limitedDigits.slice(4, 7); // Next 3 digits
+                    formatted += ' ' + limitedDigits.slice(4, 7);
                     if (limitedDigits.length > 7) {
-                        formatted += ' ' + limitedDigits.slice(7); // Last 3 digits
+                        formatted += ' ' + limitedDigits.slice(7);
                     }
                 }
             }
@@ -95,7 +105,6 @@ export default function Register() {
 
         setContact(formatted);
 
-        // Validation
         if (limitedDigits.length === 0) {
             setError(prev => ({ ...prev, contact: '' }));
         } else if (limitedDigits[0] !== '9') {
@@ -106,27 +115,22 @@ export default function Register() {
             setError(prev => ({ ...prev, contact: `Contact must be 10 digits (${limitedDigits.length}/10)` }));
         }
     };
-    // Utility function to format phone to 09XXXXXXXXX
+
     const formatPhoneForDatabase = (phone: string): string => {
-        // Remove all spaces and special characters
         const cleaned = phone.replace(/\s+/g, '').replace(/[^\d+]/g, '');
 
-        // If starts with +63, replace with 0
         if (cleaned.startsWith('+63')) {
             return '0' + cleaned.slice(3);
         }
 
-        // If starts with 63, replace with 0
         if (cleaned.startsWith('63')) {
             return '0' + cleaned.slice(2);
         }
 
-        // If already starts with 0, return as is
         if (cleaned.startsWith('0')) {
             return cleaned;
         }
 
-        // Otherwise, prepend 0
         return '0' + cleaned;
     };
 
@@ -151,7 +155,7 @@ export default function Register() {
         else setError(prev => ({ ...prev, confirmPassword: '' }));
     };
 
-    // Firebase registration
+    // ⭐ UPDATED: Validate form and show Terms modal
     const handleRegister = async () => {
         const hasError = Object.values(error).some(e => e !== '');
         if (hasError || loading) return;
@@ -168,37 +172,69 @@ export default function Register() {
             return;
         }
 
-        // Show terms modal before registration
+        // Show terms modal before anything else
         setShowTerms(true);
     };
 
     const handleTermsAccept = () => {
         setTermsAccepted(true);
         setShowTerms(false);
-        completeRegistration();
+        
+        // ⭐ NEW: Store registration data and show email verification
+        const formattedPhone = formatPhoneForDatabase(contact);
+        setPendingRegistration({
+            name: fullname,
+            email: email.toLowerCase(),
+            password: password,
+            contact: formattedPhone,
+            role: role.toLowerCase() === 'rider' ? 'rider' : 'emergency contact'
+        });
+
+        // Show email verification modal
+        setShowEmailVerification(true);
     };
 
     const handleTermsDecline = () => {
         setShowTerms(false);
     };
 
-    // ⭐ UPDATED: Use router.replace() instead of router.push()
+    // ⭐ NEW: Handle email verification
+    const handleEmailVerification = async (verificationEmail: string, code: string) => {
+        try {
+            setEmailVerificationLoading(true);
+            
+            console.log('📧 Email verification successful for:', verificationEmail);
+            
+            // Close verification modal
+            setShowEmailVerification(false);
+            
+            // ⭐ Now create the account after email is verified
+            await completeRegistration();
+            
+        } catch (err: any) {
+            console.error('Email verification error:', err.message);
+            throw err; // Re-throw to show error in the modal
+        } finally {
+            setEmailVerificationLoading(false);
+        }
+    };
+
+    // ⭐ UPDATED: Create account AFTER email verification
     const completeRegistration = async () => {
         try {
             setLoading(true);
-            const formattedPhone = formatPhoneForDatabase(contact)
             
             const { uid } = await registerUser(
-                fullname,
-                email,
-                password,
-                formattedPhone,
-                role.toLowerCase() === 'rider' ? 'rider' : 'emergency contact'
+                pendingRegistration.name,
+                pendingRegistration.email,
+                pendingRegistration.password,
+                pendingRegistration.contact,
+                pendingRegistration.role as 'rider' | 'emergency contact'
             );
 
             console.log('User registered with UID:', uid);
 
-            // ⭐ Use router.replace() to prevent back navigation to Register
+            // Navigate to main app
             router.replace({
                 pathname: '/(tabs)/MainLayout',
                 params: { uid }
@@ -206,7 +242,16 @@ export default function Register() {
         } catch (err: any) {
             console.error('Registration failed:', err.message);
             setError(prev => ({ ...prev, email: err.message }));
+            
+            // Reset states
             setTermsAccepted(false);
+            setPendingRegistration({
+                name: '',
+                email: '',
+                password: '',
+                contact: '',
+                role: 'rider'
+            });
         } finally {
             setLoading(false);
         }
@@ -417,6 +462,14 @@ export default function Register() {
                     </View>
                 </View>
             </Modal>
+
+            {/* ⭐ NEW: Email Verification Modal */}
+            <VerifyEmailCodeModal
+                visible={showEmailVerification}
+                onClose={() => setShowEmailVerification(false)}
+                onVerify={handleEmailVerification}
+                email={pendingRegistration.email}
+            />
 
             <StatusBar style="auto" />
         </View>

@@ -295,7 +295,7 @@ async function waitForAuthReady(): Promise<User | null> {
             console.warn('⚠️ Auth initialization timeout (20s)');
             unsubscribe();
             resolve(null);
-        }, 20000);
+        }, 15000);
     });
 }
 
